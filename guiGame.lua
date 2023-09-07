@@ -16,12 +16,14 @@ function GuiGame:loadGui(pWidth, pHeight)
   WIDTH = pWidth
   HEIGHT = pHeight
   
-  local menuButtonPlay = GCGUI.newButton(WIDTH/2 - imageButton.w / 2, 150, imageButton.w, imageButton.h, "Play", GCGUI.font, "center", "center")
-  menuButtonPlay:setImages(imageButton.image, imageButton.image, imageButton.image)
+  local menuButtonPlay = GCGUI.newButton(WIDTH/2 - imageButton.w / 2, 250, imageButton.w, imageButton.h, "Play", GCGUI.font)
+  menuButtonPlay:setImage(imageButton.image)
   
   GuiGame.menuGroup:addElement(menuButtonPlay)
-  
 end
-  
 
 return GuiGame
+
+
+
+

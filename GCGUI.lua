@@ -77,9 +77,8 @@ function GCGUI.newPanel(pX, pY, pW, pH, pColor)
     self.listEvents[pEventType] = pFunction
   end
   
-  
   function myPanel:setImage(pImage)
-    myPanel.image = love.graphics.newImage(pImage)
+    myPanel.image = pImage
     myPanel.w = myPanel.image:getWidth()
     myPanel.h = myPanel.image:getHeight()
   end
