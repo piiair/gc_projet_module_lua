@@ -1,36 +1,36 @@
 local shotModule = {}
 
 local WIDTH, HEIGHT
-local scaleImg = 0.5
 
 shotModule.listShots = nil
 
-function shotModule:loadModule(pWidth, pHeight)
-  WIDTH = pWidth
-  HEIGHT = pHeight
+function shotModule:loadModule()
+  WIDTH = love.graphics.getWidth()
+  HEIGHT = love.graphics.getHeight()
   shotModule.listShots = {}
 end
-function shotModule:Shoot(pX, pY, pAngle, pSpeed, pType, pTeam)
+
+function shotModule.Shoot(pXShooter, pYShooter, pAngle, pSpeed, pType, pTeam)
   local shot = {}
-  shot.x = pX
-  shot.y = pY
-  shot.angle = pAngle - 270
+  shot.x = pXShooter
+  shot.y = pYShooter
+  shot.angle = pAngle
   shot.speed = pSpeed
   shot.type = pType
-  shot.team = pSide
+  shot.team = pTeam
   shot.vx = math.cos(math.rad(shot.angle)) * shot.speed
   shot.vy = math.sin(math.rad(shot.angle)) * shot.speed
   shot.isDeleTable = false
   
   if shot.team == "ally" then
     shot.image = love.graphics.newImage("images/myBullet"..tostring(shot.type)..".png")
-  else
+  elseif shot.team == "enemy" then
     shot.image = love.graphics.newImage("images/enemyBullet"..tostring(shot.type)..".png")
   end
   table.insert(shotModule.listShots, shot)
 end
 
-function shotModule:updateShots(dt)
+function shotModule.updateShots(dt)
   if #shotModule.listShots > 0 then
     for n = 1, #shotModule.listShots do 
       local shot = shotModule.listShots[n]
@@ -53,16 +53,14 @@ function shotModule:updateShots(dt)
   end
 end
 
-function shotModule:drawShots()
+function shotModule.drawShots()
   if #shotModule.listShots > 0 then
     for n = 1, #shotModule.listShots do
       local shot = shotModule.listShots[n]
       love.graphics.draw(shot.image, shot.x, shot.y, 
-        math.rad(shot.angle), scaleImg, scaleImg, 0, shot.image:getHeight()/2)
+        math.rad(shot.angle), 1, 1, shot.image:getWidth()/2, shot.image:getHeight()/2)
     end
   end
-  
-  love.graphics.print(tostring(#shotModule.listShots), 100, 10)
 end
 
 return shotModule
