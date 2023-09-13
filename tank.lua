@@ -3,8 +3,11 @@ local tank = {}
 local ShotModule = require("shotModule")
 
 local WIDTH, HEIGHT
-local STD_BULLET_SPEED = 400
---local MISSILE_SPEED = 250
+
+local LST_BUL_SPD_TANK = {}
+LST_BUL_SPD_TANK[1] = 500
+LST_BUL_SPD_TANK[2] = 250
+
 local TIMER_SHOT = 0.5
 
 --Fixe
@@ -26,7 +29,6 @@ tank.velocity = nil
 tank.velocityMax = nil
 tank.inertiaCap = nil
 tank.engineIsOn = nil
-tank.canShoot = nil
 
 function tank.loadTank()
   WIDTH = love.graphics.getWidth()
@@ -35,28 +37,27 @@ function tank.loadTank()
   tank.y = HEIGHT / 2
   tank.angleTank = 270
   tank.angleBarrel = 270
-  tank.rotationSpeedTank = 75
+  tank.rotationSpeedTank = 200
   tank.rotationSpeedBarrel = 150
   tank.velocity = 0
   tank.velocityMax = 2.5
   tank.inertiaCap = 0.75
   tank.engineIsOn = false
-  tank.canShoot = true
+  tank.timerShot = 0
 end
 
 function tank.updateTank(dt)
   --tirs du tank
-  if tank.canShoot == false then
-    TIMER_SHOT = TIMER_SHOT - dt
-    if TIMER_SHOT <= 0 then
-      TIMER_SHOT = 1
-      tank.canShoot = true
+  if tank.timerShot > 0 then
+    tank.timerShot = tank.timerShot - dt
+    if tank.timerShot <= 0 then
+      tank.timerShot = 0
     end
-  else
-    if love.keyboard.isDown("space") then
-      tank.canShoot = false
-      ShotModule.Shoot(tank.x, tank.y, tank.angleBarrel, STD_BULLET_SPEED, 1, "ally")
-    end
+  end
+  
+  if love.keyboard.isDown("space") and tank.timerShot == 0 then
+    tank.timerShot = TIMER_SHOT
+    ShotModule.Shoot(tank.x, tank.y, tank.angleBarrel, LST_BUL_SPD_TANK[1], 1, "ally")
   end
 
   --rotation du tank + canon

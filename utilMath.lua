@@ -8,15 +8,17 @@ function utilMath.absoluteDistance(xStart, yStart, xEnd, yEnd)
   return math.abs(((xEnd - xStart) ^ 2 + (yEnd - yStart) ^ 2) ^ 0.5)
 end
 
-function utilMath.getAngle(xStart, yStart, xEnd, yEnd, pStringRadOrDegree)
-  if pStringRadOrDegree == "rad" then
+function utilMath.getAngle(xStart, yStart, xEnd, yEnd, pResultType)
+  if pResultType == "rad" then
     return math.atan2(yEnd - yStart, xEnd - xStart)
-  elseif pStringRadOrDegree == "degree" then
-    local angleDeg = math.deg(math.atan2(yEnd - yStart, xEnd - xStart))
-    if angleDeg < 0 then 
-      angleDeg = angleDeg + 360
+  elseif pResultType == "degRelative" then
+    return math.deg(math.atan2(yEnd - yStart, xEnd - xStart))
+  elseif pResultType == "degAbsolute" then
+    local result = math.deg(math.atan2(yEnd - yStart, xEnd - xStart))
+    if result < 0 then
+      result = result + 360
     end
-    return angleDeg
+    return result
   end
 end
 

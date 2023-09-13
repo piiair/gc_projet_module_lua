@@ -13,7 +13,7 @@ local WIDTH, HEIGHT
 local GameMode
 
 function love.load()
-  love.window.setMode(1440, 720)
+  love.window.setMode(1080, 720)
 
   WIDTH = love.graphics.getWidth()
   HEIGHT = love.graphics.getHeight()

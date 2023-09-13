@@ -20,7 +20,7 @@ function shotModule.Shoot(pXShooter, pYShooter, pAngle, pSpeed, pType, pTeam)
   shot.team = pTeam
   shot.vx = math.cos(math.rad(shot.angle)) * shot.speed
   shot.vy = math.sin(math.rad(shot.angle)) * shot.speed
-  shot.isDeleTable = false
+  shot.isDeletable = false
   
   if shot.team == "ally" then
     shot.image = love.graphics.newImage("images/myBullet"..tostring(shot.type)..".png")
