@@ -7,6 +7,11 @@ local function newElement(pX, pY)
   myElement.x = pX
   myElement.y = pY
   myElement.visible = true 
+
+  function myElement.setPosition(pX, pY)
+    myElement.x = pX
+    myElement.y = pY
+  end
   
   --function myElement:update(dt)
     --print("newElement / update / not implemented")
@@ -22,7 +27,6 @@ local function newElement(pX, pY)
   
   return myElement
 end
-
 
 function GCGUI.newGroup()
   local myGroup = {}
@@ -314,7 +318,6 @@ function GCGUI.newCheckbox(pX, pY, pW, pH)
   return myCheckbox
 end
 
-
 function GCGUI.newProgressBar(pX, pY, pW, pH, pMax, pColorOut, pColorIn)
   local myProgressBar = GCGUI.newPanel(pX, pY, pW, pH, pColorOut)
   myProgressBar.colorOut = pColorOut
@@ -368,9 +371,7 @@ function GCGUI.newProgressBar(pX, pY, pW, pH, pMax, pColorOut, pColorIn)
         love.graphics.setColor(1, 1, 1)
       end
     end
-    
   end
-
   return myProgressBar
 end
 

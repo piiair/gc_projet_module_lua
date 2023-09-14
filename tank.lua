@@ -5,8 +5,8 @@ local ShotModule = require("shotModule")
 local WIDTH, HEIGHT
 
 local LST_BUL_SPD_TANK = {}
-LST_BUL_SPD_TANK[1] = 500
-LST_BUL_SPD_TANK[2] = 250
+LST_BUL_SPD_TANK[1] = 600
+LST_BUL_SPD_TANK[2] = 400
 
 local TIMER_SHOT = 0.5
 
@@ -17,6 +17,7 @@ tank.widthTank = tank.imageTank:getWidth()
 tank.heightTank = tank.imageTank:getHeight()
 tank.widthBarrel = tank.imageBarrel:getWidth()
 tank.heightBarrel = tank.imageBarrel:getHeight()
+tank.hpMax = 100
 
 --Variable
 tank.x = 0
@@ -29,6 +30,7 @@ tank.velocity = nil
 tank.velocityMax = nil
 tank.inertiaCap = nil
 tank.engineIsOn = nil
+tank.hp = nil
 
 function tank.loadTank()
   WIDTH = love.graphics.getWidth()
@@ -40,10 +42,11 @@ function tank.loadTank()
   tank.rotationSpeedTank = 200
   tank.rotationSpeedBarrel = 150
   tank.velocity = 0
-  tank.velocityMax = 2.5
+  tank.velocityMax = 2
   tank.inertiaCap = 0.75
   tank.engineIsOn = false
   tank.timerShot = 0
+  tank.hp = tank.hpMax
 end
 
 function tank.updateTank(dt)
@@ -102,7 +105,6 @@ function tank.updateTank(dt)
 
   --avancée du tank
   local forceX, forceY
-
   if love.keyboard.isDown("z") then
     --tank.engineIsOn = true
     if tank.velocity < tank.velocityMax then
@@ -127,6 +129,22 @@ function tank.updateTank(dt)
   tank.x = tank.x + forceX
   tank.y = tank.y + forceY
 
+  --Collision avec les tirs ennemis
+  if #ShotModule.listShots > 0 then
+    for n = 1, #ShotModule.listShots do 
+      local shot = ShotModule.listShots[n]
+      if shot.team == "enemy" then
+        if shot.x >= tank.x - tank.widthTank / 2 - shot.w / 2 and 
+        shot.x <= tank.x + tank.widthTank / 2 + shot.w / 2 and 
+        shot.y >= tank.y - tank.heightTank / 2 - shot.h / 2 and
+        shot.y <= tank.y + tank.heightTank / 2 + shot.h / 2 then
+          tank.hp = tank.hp - shot.type 
+          shot.isDeletable = true
+        end
+      end
+    end
+  end
+
   --Collision avec les bords
   if tank.x < 0 + (tank.widthTank / 2) then
     tank.x = 0 + (tank.widthTank / 2)
@@ -143,18 +161,12 @@ end
 
 function tank.drawTank()
   --dessin du tank
-  love.graphics.draw(
-    tank.imageTank,
-    tank.x,
-    tank.y,
-    math.rad(tank.angleTank),
-    1,
-    1,
-    tank.widthTank / 2,
-    tank.heightTank / 2
-  )
+  love.graphics.draw( tank.imageTank, tank.x, tank.y, 
+  math.rad(tank.angleTank), 1, 1, tank.widthTank / 2, tank.heightTank / 2)
+
   --dessin du canon
-  love.graphics.draw(tank.imageBarrel, tank.x, tank.y, math.rad(tank.angleBarrel), 1, 1, 5, tank.heightBarrel / 2)
+  love.graphics.draw(tank.imageBarrel, tank.x, tank.y, 
+  math.rad(tank.angleBarrel), 1, 1, 5, tank.heightBarrel / 2)
 end
 
 return tank

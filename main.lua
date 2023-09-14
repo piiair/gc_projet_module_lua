@@ -14,29 +14,30 @@ local GameMode
 
 function love.load()
   love.window.setMode(1080, 720)
-
+  --love.window.setTitle("Tank quelque chose")
   WIDTH = love.graphics.getWidth()
   HEIGHT = love.graphics.getHeight()
 
-  GuiGame.loadGui()
-
+  GuiGame.loadMenuGroup()
   GameMode = "menu"
 end
 
 function love.update(dt)
   if GameMode == "menu" then
-    GuiGame.menuGroup:update(dt)
+    GuiGame.updateMenuGroup(dt)
 
     if GuiGame.menuGroup.elements[1].isPressed then
       GameMode = "game"
       Tank.loadTank()
       ShotModule.loadModule()
       EnemyModule:loadModule()
+      GuiGame.loadGameGroup()
     end
   elseif GameMode == "game" then
     ShotModule.updateShots(dt)
     Tank.updateTank(dt)
     EnemyModule.updateEnemies(dt, Tank.x, Tank.y)
+    GuiGame.updateGameGroup(dt)
   --elseif GameMode == "break" then
 
   --elseif GameMode == "victory" then
@@ -52,6 +53,7 @@ function love.draw()
     ShotModule.drawShots()
     Tank.drawTank()
     EnemyModule.drawEnemies()
+    GuiGame.gameGroup.draw()
   --elseif GameMode == "break" then
 
   --elseif GameMode == "victory" then
