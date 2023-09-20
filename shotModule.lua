@@ -1,12 +1,10 @@
 local shotModule = {}
 
-local WIDTH = love.graphics.getWidth()
-local HEIGHT = love.graphics.getHeight()
-
 shotModule.listShots = nil
 
-local LIMIT_COUNTER_SINUSOIDE = 0.3
-local CONST_DEVIATION = 45
+--utils pour les missiles
+local LIMIT_COUNTER_SINUSOIDE = 0.2
+local CONST_DEVIATION = 25
 
 function shotModule.load()
   shotModule.listShots = {}
@@ -75,9 +73,9 @@ function shotModule.update(dt)
       shot.y = shot.y + vy * dt
       
       if shot.x < 0 - shot.image:getWidth()/2 or
-        shot.x > WIDTH + shot.image:getWidth()/2 or
+        shot.x > InfosMod.screenW + shot.image:getWidth()/2 or
         shot.y < 0 - shot.image:getHeight()/2 or
-        shot.y > HEIGHT + shot.image:getHeight()/2 then
+        shot.y > InfosMod.screenH + shot.image:getHeight()/2 then
           shot.isDeletable = true
       end
     end

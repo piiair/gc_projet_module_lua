@@ -1,11 +1,12 @@
 local tank = {}
 
-local WIDTH = love.graphics.getWidth()
-local HEIGHT = love.graphics.getHeight()
-
 local LST_BUL_SPD_TANK = {}
 LST_BUL_SPD_TANK[1] = 600
 LST_BUL_SPD_TANK[2] = 400
+
+local RATES_SHOTS = {}
+RATES_SHOTS[1] = 0.5
+RATES_SHOTS[2] = 3
 
 local TIMER_SHOT = 0.5
 
@@ -44,8 +45,8 @@ function tank.reset()
 end
 
 function tank.load()
-  tank.x = WIDTH / 2
-  tank.y = HEIGHT / 2
+  tank.x = InfosMod.screenW / 2
+  tank.y = InfosMod.screenH / 2
   tank.angleTank = 270
   tank.angleBarrel = 270
   tank.rotationSpeedTank = 200
@@ -55,7 +56,8 @@ function tank.load()
   tank.inertiaCap = 0.75
   tank.hpMax = 100
   tank.hp = tank.hpMax
-  tank.timerShot = TIMER_SHOT
+  tank.timerShot1 = RATES_SHOTS[1]
+  tank.timerShot2 = RATES_SHOTS[2]
   tank.score = 0
   tank.engineIsOn = false
   tank.gameOver = false
@@ -77,16 +79,21 @@ function explodeTank(pX, pY)
 end 
 
 function tank.update(dt)
-  
   if tank.hp > 0 then
     --tirs du tank
-    if tank.timerShot > 0 then
-      tank.timerShot = tank.timerShot - dt
+    if tank.timerShot1 > 0 then
+      tank.timerShot1 = tank.timerShot1 - dt
+    end
+    if tank.timerShot2 > 0 then
+      tank.timerShot2 = tank.timerShot2 - dt
     end
     
-    if love.mouse.isDown(1) and tank.timerShot <= 0 then
-      tank.timerShot = TIMER_SHOT
+    if love.mouse.isDown(1) and tank.timerShot1 <= 0 then
+      tank.timerShot1 = RATES_SHOTS[1]
       ShotModule.Shoot(tank.x, tank.y, tank.angleBarrel, LST_BUL_SPD_TANK[1], 1, "ally")
+    elseif love.mouse.isDown(2) and tank.timerShot2 <= 0 then
+      tank.timerShot2 = RATES_SHOTS[2]
+      ShotModule.Shoot(tank.x, tank.y, tank.angleBarrel, LST_BUL_SPD_TANK[2], 2, "ally")
     end
 
     --rotation du tank + canon
@@ -119,6 +126,8 @@ function tank.update(dt)
     tank.angleBarrel = MathModule.getAngle(tank.x, tank.y, MouseX, MouseY, "degAbsolute")
 
     --avancée du tank
+    local oldPosX = tank.x
+    local oldPosY = tank.y
     local forceX, forceY
     if love.keyboard.isDown("z") then
       --tank.engineIsOn = true
@@ -167,17 +176,32 @@ function tank.update(dt)
     --Collision avec les bords
     if tank.x < 0 + (tank.widthTank / 2) then
       tank.x = 0 + (tank.widthTank / 2)
-    elseif tank.x > WIDTH - (tank.widthTank / 2) then
-      tank.x = WIDTH - (tank.widthTank / 2)
+    elseif tank.x > InfosMod.screenW - (tank.widthTank / 2) then
+      tank.x = InfosMod.screenW - (tank.widthTank / 2)
     end
 
     if tank.y < 0 + (tank.heightTank / 2) then
       tank.y = 0 + (tank.heightTank / 2)
-    elseif tank.y > HEIGHT - (tank.heightTank / 2) then
-      tank.y = HEIGHT - (tank.heightTank / 2)
+    elseif tank.y > InfosMod.screenH - (tank.heightTank / 2) then
+      tank.y = InfosMod.screenH - (tank.heightTank / 2)
     end
 
-  
+    --Collision avec les autres tank
+    if #EnemyModule.listEnemies > 0 then
+      for n = 1, #EnemyModule.listEnemies do
+        local e = EnemyModule.listEnemies[n]
+        local isCollideWithAnEnemy = MathModule.verifyCollideGeneral(
+          tank.x, tank.y, tank.widthTank, tank.heightTank,
+          e.x, e.y, tank.widthTank, tank.heightTank
+        )
+        if isCollideWithAnEnemy then
+          tank.x = oldPosX
+          tank.y = oldPosY
+          tank.velocity = 0
+          break
+        end
+      end
+    end
   else
     isDead = true
   end

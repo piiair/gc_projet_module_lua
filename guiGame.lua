@@ -38,16 +38,25 @@ end
 --Fonctions du gameGroup
 function GuiGame.loadGameGroup()
   GuiGame.gameGroup = GCGUI.newGroup()
+
   local gameHpBarPlayer = GCGUI.newProgressBar(0, 0, Tank.widthTank, 6,
     Tank.hpMax, {65 / 255, 61 / 255, 61 / 255}, {27 / 255, 180 / 255, 27 / 255})
   gameHpBarPlayer:setValue(Tank.hp)
+
+  local text = "Enemies remaining: "..tostring(EnemyModule.ENEMIES_PER_LEVEL[1] - Tank.score)
+  local remainingEnemiesPanel = GCGUI.newText(WIDTH - 300, 10, 200, 25, text, GCGUI.font, "center", "center")
+
   GuiGame.gameGroup:addElement(gameHpBarPlayer)
+  GuiGame.gameGroup:addElement(remainingEnemiesPanel)
 end
 
 function GuiGame.updateGameGroup(dt)
   --GuiGame.gameGroup:update(dt)
   GuiGame.gameGroup.elements[1]:setValue(Tank.hp)
   GuiGame.gameGroup.elements[1].setPosition(Tank.x - Tank.widthTank / 2, Tank.y - Tank.heightTank - 10)
+
+  local text = "Enemies remaining: "..tostring(EnemyModule.ENEMIES_PER_LEVEL[1] - Tank.score)
+  GuiGame.gameGroup.elements[2]:updateText(text)
 end
 
 --Fonctions du victoryGroup

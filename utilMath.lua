@@ -22,6 +22,19 @@ function utilMath.getAngle(xStart, yStart, xEnd, yEnd, pResultType)
   end
 end
 
+function utilMath.verifyCollideGeneral(pRefX, pRefY, pRefW, pRefH, pObjX, pObjY, pObjW, pObjH)
+  local isCollide = false
+
+  if pRefX >= pObjX - pObjW / 2 - pRefW / 2 and
+  pRefX <= pObjX + pObjW / 2 + pRefW / 2 and
+  pRefY >= pObjY - pObjH / 2 - pRefH / 2 and
+  pRefY <= pObjY + pObjH / 2 + pRefH / 2 then
+    isCollide = true
+  end
+
+  return isCollide
+end
+
 
 return utilMath
 
