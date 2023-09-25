@@ -1,14 +1,14 @@
 local tank = {}
 
-local LST_BUL_SPD_TANK = {}
-LST_BUL_SPD_TANK[1] = 600
-LST_BUL_SPD_TANK[2] = 400
+local SettingsMod = require("settings")
+local MathMod = require("utilMath")
+local EnemyMod = require("enemyModule")
+local MiningMod = require("miningModule")
+local ExplodeMod = require("explodeModule")
 
-local RATES_SHOTS = {}
-RATES_SHOTS[1] = 0.5
-RATES_SHOTS[2] = 3
-
-local TIMER_SHOT = 0.5
+tank.RATES_SHOTS = {}
+tank.RATES_SHOTS[1] = 0.5
+tank.RATES_SHOTS[2] = 3
 
 --Fixe
 tank.imageTank = love.graphics.newImage("images/tank.png")
@@ -19,7 +19,7 @@ tank.widthBarrel = tank.imageBarrel:getWidth()
 tank.heightBarrel = tank.imageBarrel:getHeight()
 
 --Variable 
-local isDead = nil
+tank.isDead = nil
 local MouseX, MouseY
 
 --Variable
@@ -40,13 +40,65 @@ function tank.reset()
   tank.score = 0
   tank.engineIsOn = false
   tank.gameOver = false
+  tank.isDead = false
+end
+
+local function resetPosIfCollide(pIsCollide, pX, pY)
+  if pIsCollide then
+    tank.x = pX
+    tank.y = pY
+  end
+end
+
+local function VerifyCollideWithEntities(pOldPosX, pOldPosY)
+  --Collision avec les bords
+  if tank.x < 0 + (tank.widthTank / 2) then
+    tank.x = 0 + (tank.widthTank / 2)
+  elseif tank.x > SettingsMod.screenW - (tank.widthTank / 2) then
+    tank.x = SettingsMod.screenW - (tank.widthTank / 2)
+  end
+
+  if tank.y < 0 + (tank.heightTank / 2) then
+    tank.y = 0 + (tank.heightTank / 2)
+  elseif tank.y > SettingsMod.screenH - (tank.heightTank / 2) then
+    tank.y = SettingsMod.screenH - (tank.heightTank / 2)
+  end
+
+  --Collision avec les autres tank
+  for n = 1, #EnemyMod.listEnemies do
+    local e = EnemyMod.listEnemies[n]
+    local isCollideWithAnEnemy = MathMod.verifyCollideGeneral(
+      tank.x, tank.y, tank.widthTank, tank.heightTank,
+      e.x, e.y, tank.widthTank, tank.heightTank
+    )
+    resetPosIfCollide(isCollideWithAnEnemy, pOldPosX, pOldPosY)
+  end
   
-  isDead = false
+  --Collision avec les sites de minage
+  for n = 1, #MiningMod.listSites do 
+    local s = MiningMod.listSites[n]
+    local isCollide = MathMod.verifyCollideGeneral(
+      tank.x, tank.y, tank.widthTank, tank.heightTank,
+      s.x, s.y, MiningMod.mineW, MiningMod.mineH
+    )
+    resetPosIfCollide(isCollide, pOldPosX, pOldPosY)
+  end
+end
+
+function tank.hurts(pDammage)
+  if tank.isDead == false then
+    tank.hp = tank.hp - pDammage
+    if tank.hp <= 0 then
+      tank.hp = 0
+      tank.isDead = true
+      ExplodeMod.createMultiExplode(tank.x, tank.y, tank.widthTank, tank.heightTank)
+    end
+  end
 end
 
 function tank.load()
-  tank.x = InfosMod.screenW / 2
-  tank.y = InfosMod.screenH / 2
+  tank.x = SettingsMod.screenW / 2
+  tank.y = SettingsMod.screenH / 2
   tank.angleTank = 270
   tank.angleBarrel = 270
   tank.rotationSpeedTank = 200
@@ -54,29 +106,17 @@ function tank.load()
   tank.velocity = 0
   tank.velocityMax = 1.25
   tank.inertiaCap = 0.75
-  tank.hpMax = 100
+  tank.hpMax = 10
   tank.hp = tank.hpMax
-  tank.timerShot1 = RATES_SHOTS[1]
-  tank.timerShot2 = RATES_SHOTS[2]
+  tank.timerShot1 = tank.RATES_SHOTS[1]
+  tank.timerShot2 = tank.RATES_SHOTS[2]
   tank.score = 0
   tank.engineIsOn = false
   tank.gameOver = false
 
   MouseX, MouseY = love.mouse.getPosition()
-  isDead = false
+  tank.isDead = false
 end
-
-function explodeTank(pX, pY)
-  if tank.hp > 0 then
-    ExplodeModule.createExplode(pX, pY, 0.1)
-  else 
-    for n = 1, math.random(4, 6) do
-      local x = math.random(tank.x - tank.widthTank / 2, tank.x + tank.widthTank / 2)
-      local y = math.random(tank.y - tank.heightTank / 2, tank.y + tank.heightTank / 2)
-      ExplodeModule.createExplode(x, y, math.random(5, 20) / 100)
-    end
-  end
-end 
 
 function tank.update(dt)
   if tank.hp > 0 then
@@ -86,14 +126,6 @@ function tank.update(dt)
     end
     if tank.timerShot2 > 0 then
       tank.timerShot2 = tank.timerShot2 - dt
-    end
-    
-    if love.mouse.isDown(1) and tank.timerShot1 <= 0 then
-      tank.timerShot1 = RATES_SHOTS[1]
-      ShotModule.Shoot(tank.x, tank.y, tank.angleBarrel, LST_BUL_SPD_TANK[1], 1, "ally")
-    elseif love.mouse.isDown(2) and tank.timerShot2 <= 0 then
-      tank.timerShot2 = RATES_SHOTS[2]
-      ShotModule.Shoot(tank.x, tank.y, tank.angleBarrel, LST_BUL_SPD_TANK[2], 2, "ally")
     end
 
     --rotation du tank + canon
@@ -123,7 +155,7 @@ function tank.update(dt)
 
     --rotation du canon
     MouseX, MouseY = love.mouse.getPosition()
-    tank.angleBarrel = MathModule.getAngle(tank.x, tank.y, MouseX, MouseY, "degAbsolute")
+    tank.angleBarrel = MathMod.getAngle(tank.x, tank.y, MouseX, MouseY, "degAbsolute")
 
     --avancée du tank
     local oldPosX = tank.x
@@ -153,68 +185,21 @@ function tank.update(dt)
     tank.x = tank.x + forceX
     tank.y = tank.y + forceY
 
-    --Collision avec les tirs ennemis
-    if #ShotModule.listShots > 0 then
-      for n = 1, #ShotModule.listShots do 
-        local shot = ShotModule.listShots[n]
-        if shot.team == "enemy" then
-          if shot.x >= tank.x - tank.widthTank / 2  and 
-          shot.x <= tank.x + tank.widthTank / 2  and 
-          shot.y >= tank.y - tank.heightTank / 2  and
-          shot.y <= tank.y + tank.heightTank / 2  then
-            tank.hp = tank.hp - shot.type
-            if tank.hp < 0 then
-              tank.hp = 0
-            end
-            shot.isDeletable = true
-            explodeTank(shot.x, shot.y)
-          end
-        end
-      end
-    end
-
-    --Collision avec les bords
-    if tank.x < 0 + (tank.widthTank / 2) then
-      tank.x = 0 + (tank.widthTank / 2)
-    elseif tank.x > InfosMod.screenW - (tank.widthTank / 2) then
-      tank.x = InfosMod.screenW - (tank.widthTank / 2)
-    end
-
-    if tank.y < 0 + (tank.heightTank / 2) then
-      tank.y = 0 + (tank.heightTank / 2)
-    elseif tank.y > InfosMod.screenH - (tank.heightTank / 2) then
-      tank.y = InfosMod.screenH - (tank.heightTank / 2)
-    end
-
-    --Collision avec les autres tank
-    if #EnemyModule.listEnemies > 0 then
-      for n = 1, #EnemyModule.listEnemies do
-        local e = EnemyModule.listEnemies[n]
-        local isCollideWithAnEnemy = MathModule.verifyCollideGeneral(
-          tank.x, tank.y, tank.widthTank, tank.heightTank,
-          e.x, e.y, tank.widthTank, tank.heightTank
-        )
-        if isCollideWithAnEnemy then
-          tank.x = oldPosX
-          tank.y = oldPosY
-          tank.velocity = 0
-          break
-        end
-      end
-    end
+    --On vérifie toutes les collisions
+    VerifyCollideWithEntities(oldPosX, oldPosY)
   else
-    isDead = true
+    tank.isDead = true
   end
 
   --tank.gameOver
-  if isDead and #ExplodeModule.listExplodes == 0 then
+  if tank.isDead and #ExplodeMod.listExplodes == 0 then
     tank.gameOver = true
   end
 end
 
 function tank.draw()
   --dessin du tank
-  if isDead == false then
+  if tank.isDead == false then
     love.graphics.draw( tank.imageTank, tank.x, tank.y, 
     math.rad(tank.angleTank), 1, 1, tank.widthTank / 2, tank.heightTank / 2)
 
@@ -223,4 +208,5 @@ function tank.draw()
     math.rad(tank.angleBarrel), 1, 1, 5, tank.heightBarrel / 2)
   end
 end
+
 return tank

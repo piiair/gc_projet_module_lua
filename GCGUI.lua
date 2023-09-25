@@ -198,7 +198,6 @@ function GCGUI.newButton(pX, pY, pW, pH, pText, pFont, pColor)
   
   --update button
   function myButton:update(dt)
-    
     self:updatePanel(dt)
     
     if self.isHover and love.mouse.isDown(1) and self.isPressed == false and self.oldButtonState == false then

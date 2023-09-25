@@ -6,9 +6,10 @@ for n = 1, 5 do
 end
 
 local LST_IMG_EXPLODE_MISSILE = {}
-local SPRITE_SHEET_MISSILE = love.graphics.newImage("images/explosion_missile.png")
+local IMG_MISSILE_EXPL = love.graphics.newImage("images/explosion_missile.png")
 for n = 1, 6 do
-  LST_IMG_EXPLODE_MISSILE[n] = love.graphics.newQuad(32* (n-1), 0, 32, 32, SPRITE_SHEET_MISSILE)
+  LST_IMG_EXPLODE_MISSILE[n] = love.graphics.newQuad(32* (n-1), 0, 32, 32, 
+  IMG_MISSILE_EXPL:getWidth(), IMG_MISSILE_EXPL:getHeight())
 end
 
 local TYPE_SIMPLE = "simple"
@@ -32,6 +33,15 @@ function explodeModule.createExplode(pX, pY, ptimer, pType)
   table.insert(explodeModule.listExplodes, explode)
 end
 
+function explodeModule.createMultiExplode(pX, pY, pObjW, pObjH)
+  for n = 1, math.random(4, 6) do
+    local x = math.random(pX - pObjW / 2, pX + pObjW / 2)
+    local y = math.random(pY- pObjH / 2, pY + pObjH / 2)
+    local timer = math.random(5, 20) / 100
+    explodeModule.createExplode(x, y, timer, "simple")
+  end
+end 
+
 function explodeModule.update(dt)
   if #explodeModule.listExplodes > 0 then
     --évolution des explosions
@@ -43,8 +53,14 @@ function explodeModule.update(dt)
         ex.timer = ex.timerRef
       end
 
-      if ex.frame > #LST_IMG_EXPLODE then
-        ex.isDeletable = true
+      if ex.type == "simple" then
+        if ex.frame > #LST_IMG_EXPLODE then
+          ex.isDeletable = true
+        end
+      elseif ex.type == "missile" then
+        if ex.frame > #LST_IMG_EXPLODE_MISSILE then
+          ex.isDeletable = true
+        end
       end
     end
   end
@@ -67,11 +83,8 @@ function explodeModule.draw()
         imgFrame = LST_IMG_EXPLODE[ex.frame]
         love.graphics.draw(imgFrame, ex.x, ex.y, 0, 1, 1, imgFrame:getWidth()/2, imgFrame:getHeight()/2)
       elseif ex.type == "missile" then 
-        imgFrame = SPRITE_SHEET_MISSILE
-        local quad = love.graphics.newQuad(32 * (ex.frame - 1), 0, 32, 32, SPRITE_SHEET_MISSILE)
-        love.graphics.draw(imgFrame, quad, ex.x, ex.y)
-      end
-      
+        love.graphics.draw(IMG_MISSILE_EXPL, LST_IMG_EXPLODE_MISSILE[ex.frame], ex.x, ex.y)
+      end 
     end
   end
 end

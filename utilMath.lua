@@ -35,6 +35,47 @@ function utilMath.verifyCollideGeneral(pRefX, pRefY, pRefW, pRefH, pObjX, pObjY,
   return isCollide
 end
 
+function utilMath.verifyCollideAxeX(pRefX, pRefW, pObjX, pObjW)
+  local isCollide = false
+
+  if pRefX >= pObjX - pObjW / 2 - pRefW / 2 and pRefX <= pObjX + pObjW / 2 + pRefW / 2 then
+    isCollide = true
+  end
+
+  return isCollide
+end
+
+function utilMath.verifyCollideAxeY(pRefY, pRefH, pObjY, pObjH)
+  local isCollide = false
+
+  if pRefY >= pObjY - pObjH / 2 - pRefH / 2 and pRefY <= pObjY + pObjH / 2 + pRefH / 2 then
+    isCollide = true
+  end
+
+  return isCollide
+end
+
+function utilMath.verifyCollideScreenBorders(pObj, pScreenW, pScreenH, pWhatCollision)
+  local isCollide = false
+
+  if pWhatCollision == "inside" then
+    if pObj.x < 0 + pObj.image:getWidth()/2 or
+      pObj.x > pScreenW - pObj.image:getWidth()/2 or
+      pObj.y < 0 + pObj.image:getHeight()/2 or
+      pObj.y > pScreenH - pObj.image:getHeight()/2 then
+        isCollide = true
+    end
+  elseif pWhatCollision == "outside" then
+    if pObj.x < 0 - pObj.image:getWidth()/2 or
+    pObj.x > pScreenW + pObj.image:getWidth()/2 or
+    pObj.y < 0 - pObj.image:getHeight()/2 or
+    pObj.y > pScreenH + pObj.image:getHeight()/2 then
+      isCollide = true
+  end
+  end
+
+  return isCollide
+end
 
 return utilMath
 

@@ -1,29 +1,37 @@
 local enemyModule = {}
 
-MathModule = require("utilMath")
+local SettingsMod = require("settings")
+local MathMod = require("utilMath")
+local MiningMod = require("miningModule")
+local ExplodeModule = require("explodeModule")
 
-local WIDTH = love.graphics.getWidth()
-local HEIGHT = love.graphics.getHeight()
 
 local LIST_IMG_TANKS = {}
 LIST_IMG_TANKS[1] = love.graphics.newImage("images/enemyTank1.png")
 LIST_IMG_TANKS[2] = love.graphics.newImage("images/enemyTank2.png")
 LIST_IMG_TANKS[3] = love.graphics.newImage("images/enemyTank3.png")
+LIST_IMG_TANKS[4] = love.graphics.newImage("images/drone.png")
 
 local LIST_IMG_BARREL = {}
 LIST_IMG_BARREL[1] = love.graphics.newImage("images/enemyBarrel1.png")
 LIST_IMG_BARREL[2] = love.graphics.newImage("images/enemyBarrel2.png")
 LIST_IMG_BARREL[3] = love.graphics.newImage("images/enemyBarrel3.png")
 
-local TANK_WIDTH = LIST_IMG_TANKS[1]:getWidth()
-local TANK_HEIGHT = LIST_IMG_TANKS[1]:getHeight()
-local BARREL_WIDTH = LIST_IMG_BARREL[1]:getWidth()
-local BARREL_HEIGHT = LIST_IMG_BARREL[1]:getHeight()
+enemyModule.TANK_WIDTH = LIST_IMG_TANKS[1]:getWidth()
+enemyModule.TANK_HEIGHT = LIST_IMG_TANKS[1]:getHeight()
+enemyModule.BARREL_WIDTH = LIST_IMG_BARREL[1]:getWidth()
 
-local LIST_BUL_SPEED = {}
-LIST_BUL_SPEED[1] = 800
-LIST_BUL_SPEED[2] = 700
-LIST_BUL_SPEED[3] = 600
+local LIST_SPD_ENEMIES = {}
+LIST_SPD_ENEMIES[1] = 100
+LIST_SPD_ENEMIES[2] = 125
+LIST_SPD_ENEMIES[3] = 50
+LIST_SPD_ENEMIES[4] = 150
+
+local LIST_HP_ENEMIES = {}
+LIST_HP_ENEMIES[1] = 2
+LIST_HP_ENEMIES[2] = 4
+LIST_HP_ENEMIES[3] = 6
+LIST_HP_ENEMIES[4] = 2
 
 local LIST_DIST_DETEC = {}
 LIST_DIST_DETEC[1] = 350
@@ -36,9 +44,15 @@ LIST_COEF_DIST_SHOOT[2] = 0.5
 LIST_COEF_DIST_SHOOT[3] = 0.85
 
 local LIST_ANGLE_DETEC = {}
-LIST_ANGLE_DETEC[1] = 20
-LIST_ANGLE_DETEC[2] = 30
-LIST_ANGLE_DETEC[3] = 50
+LIST_ANGLE_DETEC[1] = 40
+LIST_ANGLE_DETEC[2] = 50
+LIST_ANGLE_DETEC[3] = 60
+
+local LIST_TIMER_MOVE = {}
+LIST_TIMER_MOVE[1] = 1
+LIST_TIMER_MOVE[2] = 1
+LIST_TIMER_MOVE[3] = 1
+LIST_TIMER_MOVE[4] = 0.15
 
 local LIST_TIMER_SHOT = {}
 LIST_TIMER_SHOT[1] = 0.75
@@ -46,27 +60,31 @@ LIST_TIMER_SHOT[2] = 1
 LIST_TIMER_SHOT[3] = 3
 
 local LIST_RATE_OF_FIRE = {}
-LIST_RATE_OF_FIRE[1] = nil
-LIST_RATE_OF_FIRE[2] = nil
 LIST_RATE_OF_FIRE[3] = 1
 
 local LIST_MAGAZINE = {}
-LIST_MAGAZINE[1] = 0
-LIST_MAGAZINE[2] = 0
 LIST_MAGAZINE[3] = 3
 
 enemyModule.ENEMIES_PER_LEVEL = {}
 enemyModule.ENEMIES_PER_LEVEL[1] = 10
 
-local SPD_ENEMY = 100
 local SPD_ROTA_TANK = 75
 local SPD_ROTA_BARREL = 95
-local TIMER_SPAWN_REF = 3
 local TIMER_MOVE = 1
 local TIMER_RADAR = 0.25
-local TIMER_STEP_BACK = 0.5
+local TIMER_EXTRACT = 5
+local TIMER_RUNDOWN = 4
 local BASE_HP = 2
+
+--Spawn
+local TIMER_SPAWN_TANK_REF = 3
+local TIMER_SPAWN_DRONE_REF = 3
+local timerSpawn = nil
+local timerSpawnDrone = nil
+
 local LIST_SPAWN = {}
+local LIST_DEPOSIT_SITES = {}
+local DEPOSIT_SITE_SIZE = 32
 
 --machine à états
 local STATE_SPAWN = "spawn"
@@ -75,61 +93,67 @@ local STATE_RADAR = "radar"
 local STATE_CHASE = "chase"
 local STATE_CHANGEDIR = "chd"
 local STATE_MOVE = "move"
-local STATE_STEPBACK = "stepBack"
 local STATE_SHOOT = "shoot"
+local STATE_TARGET = "target"
+local STATE_MINE = "mine"
+local STATE_RUNDOWN = "runDown"
 
-local timerSpawn = nil
 
+local countEnemy = nil
+local enemiesStock = nil
 enemyModule.listEnemies = nil
-enemiesStock = nil
 enemyModule.playerVictory = nil
+enemyModule.scorePlayer = nil
 
 function enemyModule.reset()
   timerSpawn = nil
-  enemyModule.listEnemies = nil
+  timerSpawnDrone = nil
+  countEnemy = nil
   enemiesStock = nil
+  enemyModule.listEnemies = nil
   enemyModule.playerVictory = nil
+  enemymodule.scorePlayer = nil
 end
 
-function loadSpawns()
+local function loadSpawns()
   local spawn1 = {}
   spawn1.x = 0
-  spawn1.y = HEIGHT - (HEIGHT / 4)
+  spawn1.y = SettingsMod.screenH - (SettingsMod.screenH / 4)
   spawn1.angle = 0
 
   local spawn2 = {}
   spawn2.x = 0
-  spawn2.y = HEIGHT / 4
+  spawn2.y = SettingsMod.screenH / 4
   spawn2.angle = 0
 
   local spawn3 = {}
-  spawn3.x = WIDTH / 3
+  spawn3.x = SettingsMod.screenW / 3
   spawn3.y = 0
   spawn3.angle = 90
 
   local spawn4 = {}
-  spawn4.x = WIDTH - (WIDTH / 3)
+  spawn4.x = SettingsMod.screenW - (SettingsMod.screenW / 3)
   spawn4.y = 0
   spawn4.angle = 90
 
   local spawn5 = {}
-  spawn5.x = WIDTH
-  spawn5.y = HEIGHT / 4
+  spawn5.x = SettingsMod.screenW
+  spawn5.y = SettingsMod.screenH / 4
   spawn5.angle = 180
 
   local spawn6 = {}
-  spawn6.x = WIDTH
-  spawn6.y = HEIGHT - (HEIGHT / 4)
+  spawn6.x = SettingsMod.screenW
+  spawn6.y = SettingsMod.screenH - (SettingsMod.screenH / 4)
   spawn6.angle = 180
 
   local spawn7 = {}
-  spawn7.x = WIDTH - (WIDTH / 3)
-  spawn7.y = HEIGHT
+  spawn7.x = SettingsMod.screenW - (SettingsMod.screenW / 3)
+  spawn7.y = SettingsMod.screenH
   spawn7.angle = 270
 
   local spawn8 = {}
-  spawn8.x = WIDTH / 3
-  spawn8.y = HEIGHT
+  spawn8.x = SettingsMod.screenW / 3
+  spawn8.y = SettingsMod.screenH
   spawn8.angle = 270
 
   table.insert(LIST_SPAWN, spawn1)
@@ -142,50 +166,130 @@ function loadSpawns()
   table.insert(LIST_SPAWN, spawn8)
 end
 
+local function loadDepositSites()
+  local s1 = {
+    x = 0 + DEPOSIT_SITE_SIZE / 2, 
+    y = SettingsMod.screenH / 2
+  }
+
+  local s2 = {
+    x = SettingsMod.screenW / 2, 
+    y = 0 + DEPOSIT_SITE_SIZE / 2
+  }
+
+  local s3 = {
+    x =  SettingsMod.screenW - DEPOSIT_SITE_SIZE / 2, 
+    y = SettingsMod.screenH / 2
+  }
+
+  local s4 = {
+    x = SettingsMod.screenW / 2, 
+    y = SettingsMod.screenH - DEPOSIT_SITE_SIZE / 2
+  }
+
+  table.insert(LIST_DEPOSIT_SITES, s1)
+  table.insert(LIST_DEPOSIT_SITES, s2)
+  table.insert(LIST_DEPOSIT_SITES, s3)
+  table.insert(LIST_DEPOSIT_SITES, s4)
+end
+
 function enemyModule.load()
   enemyModule.listEnemies = {}
+  countEnemy = 0
   enemiesStock = enemyModule.ENEMIES_PER_LEVEL[1]
   timerSpawn = 1.5
+  timerSpawnDrone = 0
+  enemyModule.scorePlayer = 0
   enemyModule.playerVictory = false
   loadSpawns()
+  loadDepositSites()
 end
 
-function CreateEnemy(pType)
-  local currentSpawn = LIST_SPAWN[math.random(1, 8)]
-  local newEnemy = {}
-  newEnemy.x = currentSpawn.x
-  newEnemy.y = currentSpawn.y
-  newEnemy.angleTank = currentSpawn.angle
-  newEnemy.angleBarrel = currentSpawn.angle
-  newEnemy.state = "spawn"
-  newEnemy.type = pType
-  newEnemy.timerMove = TIMER_MOVE
-  newEnemy.timerRadar = TIMER_RADAR
-  newEnemy.timerShot = 0
-  newEnemy.newDirectionAngle = 0
-  newEnemy.newRotationTimer = 0
-  newEnemy.timerStepBack = TIMER_STEP_BACK
-  newEnemy.hp = newEnemy.type * BASE_HP
+local function TargetCloserSpot(pDroneX, pDroneY, pSpotType)
+  local iCloser = 1
+  local distCloser
 
-  if newEnemy.type == 3 then
-    newEnemy.magazine = 3
-    newEnemy.rateOfFire = LIST_RATE_OF_FIRE[newEnemy.type]
-    newEnemy.typeExplode = "missile"
-  else
-    newEnemy.typeExplode = "simple"
+  if pSpotType == "mine" then
+    for n = 2, #MiningMod.listSites do
+      local ref = MiningMod.listSites[iCloser]
+      distCloser = MathMod.absoluteDistance(pDroneX, pDroneY, ref.x, ref.y)
+      local s = MiningMod.listSites[n]
+      local distNew = MathMod.absoluteDistance(pDroneX, pDroneY, s.x, s.y)
+      if distNew < distCloser then
+        iCloser = n
+      end
+    end
+
+  elseif pSpotType == "deposit" then
+    for n = 2, #LIST_DEPOSIT_SITES do 
+      local ref = LIST_DEPOSIT_SITES[iCloser]
+      distCloser = MathMod.absoluteDistance(pDroneX, pDroneY, ref.x, ref.y)
+      local d = LIST_DEPOSIT_SITES[n]
+      local distNew = MathMod.absoluteDistance(pDroneX, pDroneY, d.x, d.y)
+      if distNew < distCloser then
+        iCloser = n
+      end
+    end
   end
-  
-  table.insert(enemyModule.listEnemies, newEnemy)
+
+  return iCloser
 end
 
-function PlayerIsInDetectionArea(pEnemyX, pEnemyY, pEnemyAngle, pEnemyType, pPlayerX, pPlayerY)
+local function CreateEnemySkeleton(pType)
+  local currentSpawn = LIST_SPAWN[math.random(1, 8)]
+
+  local skeleton = {}
+  skeleton.id = countEnemy
+  skeleton.x = currentSpawn.x
+  skeleton.y = currentSpawn.y
+  skeleton.angleBody = currentSpawn.angle
+  skeleton.type = pType
+  skeleton.state = STATE_SPAWN
+  skeleton.hp = LIST_HP_ENEMIES[pType]
+  skeleton.newDirectionAngle = 0
+  skeleton.newRotationTimer = 0
+  skeleton.timerMove = TIMER_MOVE
+  skeleton.timerRadar = TIMER_RADAR
+  skeleton.imgBody = LIST_IMG_TANKS[pType]
+  skeleton.w = skeleton.imgBody:getWidth()
+  skeleton.h = skeleton.imgBody:getHeight()
+  return skeleton
+end
+
+local function CreateEnemy(pType)
+  countEnemy = countEnemy + 1
+  local e = CreateEnemySkeleton(pType)
+  
+  if e.type >= 1 and e.type <= 3 then
+    e.angleBarrel = e.angleBody
+    e.counterChangeDir = 0
+    e.timerShot = 0
+    e.isShooting = false
+    if e.type == 1 or e.type == 2 then
+      e.typeExplode = "simple"
+    elseif e.type == 3 then
+      e.magazine = 3
+      e.rateOfFire = LIST_RATE_OF_FIRE[e.type]
+      e.typeExplode = "missile"
+    end
+  elseif e.type == 4 then
+    e.isEmpty = true
+    e.timerExtract = TIMER_EXTRACT
+    e.timerRunDown = TIMER_RUNDOWN
+    e.isTaskFinished = false
+  end
+
+  table.insert(enemyModule.listEnemies, e)
+end
+
+local function PlayerIsInDetectionArea(pEnemyX, pEnemyY, pEnemyAngle, pEnemyType, pPlayerX, pPlayerY)
   local isInArea = false
-  local distPlayer = MathModule.absoluteDistance(pEnemyX, pEnemyY, pPlayerX, pPlayerY)
+  local distPlayer = MathMod.absoluteDistance(pEnemyX, pEnemyY, pPlayerX, pPlayerY)
 
   -- On vérifie d'abord la distance
   if distPlayer <= LIST_DIST_DETEC[pEnemyType] then
     --On vérifie ensuite l'angle
-    local angleAtPlayer = MathModule.getAngle(pEnemyX, pEnemyY, pPlayerX, pPlayerY, "degAbsolute")
+    local angleAtPlayer = MathMod.getAngle(pEnemyX, pEnemyY, pPlayerX, pPlayerY, "degAbsolute")
 
     if
       angleAtPlayer >= pEnemyAngle - LIST_ANGLE_DETEC[pEnemyType] and
@@ -198,10 +302,11 @@ function PlayerIsInDetectionArea(pEnemyX, pEnemyY, pEnemyAngle, pEnemyType, pPla
   return isInArea
 end
 
-function VerifyCollideWall(pEnemyX, pEnemyY)
+local function VerifyCollideWall(pEnemyX, pEnemyY)
   if
-    pEnemyX < 0 + (TANK_WIDTH / 2) or pEnemyX > WIDTH - (TANK_WIDTH / 2) or pEnemyY < 0 + (TANK_HEIGHT / 2) or
-      pEnemyY > HEIGHT - (TANK_HEIGHT / 2)
+    pEnemyX < 0 + (enemyModule.TANK_WIDTH / 2) or pEnemyX > SettingsMod.screenW - (enemyModule.TANK_WIDTH / 2) or
+      pEnemyY < 0 + (enemyModule.TANK_HEIGHT / 2) or
+      pEnemyY > SettingsMod.screenH - (enemyModule.TANK_HEIGHT / 2)
    then
     return true
   else
@@ -209,36 +314,47 @@ function VerifyCollideWall(pEnemyX, pEnemyY)
   end
 end
 
-function VerifyCollideWidthEnemies(pEnemyX, pEnemyY, pEnemyIndex)
-  local isCollideWithAnEnemy = false
+local function VerifyCollideWidthEntities(pEnemyX, pEnemyY, pEnemyIndex)
+  local isCollide = false
 
-  if #enemyModule.listEnemies > 1 then
-    for n = 1, #enemyModule.listEnemies do
-      local e = enemyModule.listEnemies[n]
-      if pEnemyIndex ~= n then
-        isCollideWithAnEnemy = MathModule.verifyCollideGeneral(pEnemyX, pEnemyY, TANK_WIDTH, TANK_HEIGHT, e.x, e.y,
-      TANK_WIDTH, TANK_HEIGHT)
-      end
-      if isCollideWithAnEnemy == true then
-        break
-      end
+  for n = 1, #enemyModule.listEnemies do
+    local e = enemyModule.listEnemies[n]
+    if pEnemyIndex ~= n then
+      isCollide = MathMod.verifyCollideGeneral(
+        pEnemyX, pEnemyY, enemyModule.TANK_WIDTH, enemyModule.TANK_HEIGHT, 
+        e.x, e.y, enemyModule.TANK_WIDTH, enemyModule.TANK_HEIGHT)
+    end
+    if isCollide then
+      return true
     end
   end
 
-  return isCollideWithAnEnemy
+  for n = 1, #MiningMod.listSites do 
+    local s = MiningMod.listSites[n]
+    isCollide = MathMod.verifyCollideGeneral(
+      pEnemyX, pEnemyY, enemyModule.TANK_WIDTH, enemyModule.TANK_HEIGHT,
+      s.x, s.y, MiningMod.mineW, MiningMod.mineH
+    )
+
+    if isCollide then
+      return true
+    end
+  end
+
+  return isCollide
 end
 
-function RotateElement(pEnemyAngleElement, pAngleAtPlayer, pSpeed, dt)
-  local diffAngle = math.abs(pEnemyAngleElement - pAngleAtPlayer)
+local function RotateElement(pEnemyAngleElement, pAngleAtObject, pSpeed, dt)
+  local diffAngle = math.abs(pEnemyAngleElement - pAngleAtObject)
   local newAngle
 
-  if pEnemyAngleElement > pAngleAtPlayer then
+  if pEnemyAngleElement > pAngleAtObject then
     if diffAngle < 180 then
       newAngle = pEnemyAngleElement - pSpeed * dt
     else
       newAngle = pEnemyAngleElement + pSpeed * dt
     end
-  elseif pEnemyAngleElement < pAngleAtPlayer then
+  elseif pEnemyAngleElement < pAngleAtObject then
     if diffAngle < 180 then
       newAngle = pEnemyAngleElement + pSpeed * dt
     else
@@ -249,7 +365,7 @@ function RotateElement(pEnemyAngleElement, pAngleAtPlayer, pSpeed, dt)
   return newAngle
 end
 
-function ControllAngleElement(pAngleElement)
+local function ControllAngleElement(pAngleElement)
   local newAngle = pAngleElement
   if pAngleElement > 360 then
     newAngle = pAngleElement - 360
@@ -259,244 +375,301 @@ function ControllAngleElement(pAngleElement)
   return newAngle
 end
 
+local function CalculNewPosByAxe(pPos, pAngle, pSpeed, pCosOrSin, dt)
+  local newPos
+  local v
+  if pCosOrSin == "cos" then
+    v = math.cos(math.rad(pAngle)) * pSpeed * dt
+  elseif pCosOrSin == "sin" then
+    v = math.sin(math.rad(pAngle)) * pSpeed * dt
+  end
+  newPos = pPos + v
+  return newPos
+end
+
 --Machine à états des ennemis
-function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
-  local enemy = enemyModule.listEnemies[pIndex]
-  local oldPosX = enemy.x
-  local oldPosY = enemy.y
+local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
+  local e = enemyModule.listEnemies[pIndex]
+  local oldPosX = e.x
+  local oldPosY = e.y
 
-  --Machine à états
-  if enemy.state == STATE_SPAWN then
-    local vx = math.cos(math.rad(enemy.angleTank)) * SPD_ENEMY * dt
-    local vy = math.sin(math.rad(enemy.angleTank)) * SPD_ENEMY * dt
-    enemy.x = enemy.x + vx
-    enemy.y = enemy.y + vy
+  --Machine à états tank
+  if e.type < 4 then 
+    if e.state == STATE_SPAWN then
+      e.x = CalculNewPosByAxe(e.x, e.angleBody, LIST_SPD_ENEMIES[e.type] , "cos", dt)
+      e.y = CalculNewPosByAxe(e.y, e.angleBody, LIST_SPD_ENEMIES[e.type] , "sin", dt)
 
-    enemy.timerMove = enemy.timerMove - dt
-    if enemy.timerMove <= 0 then
-      enemy.newDirectionAngle = math.random(20, 40)
-      enemy.state = STATE_NULL
-    end
-  elseif enemy.state == STATE_NULL then
-    enemy.timerMove = TIMER_MOVE
-    enemy.timerRadar = TIMER_RADAR
-    enemy.timerShot = LIST_TIMER_SHOT[enemy.type]
-    enemy.angleBarrel = enemy.angleTank
-    enemy.timerStepBack = TIMER_STEP_BACK
-    local CoinFlip = math.random(1, 10)
-    if CoinFlip <= 5 then
-      enemy.newDirectionAngle = -enemy.newDirectionAngle
-    end
-
-    enemy.newRotationTimer = math.abs(enemy.newDirectionAngle) / SPD_ROTA_TANK
-    enemy.state = STATE_CHANGEDIR
-  elseif enemy.state == STATE_RADAR then
-    enemy.timerRadar = enemy.timerRadar - dt
-
-    --Quand timer à 0 on tire si joueur sinon état null pour un nouveau cycle
-    if enemy.timerRadar <= 0 then
-      local playerIsInArea = PlayerIsInDetectionArea(enemy.x, enemy.y, enemy.angleTank, enemy.type, pPlayerX, pPlayerY)
-      --Si joueur détecté alors on passe à la procédure de tir
-      if playerIsInArea then
-        enemy.state = STATE_CHASE
-      else
-        enemy.newDirectionAngle = math.random(20, 40)
-        enemy.state = STATE_NULL
+      e.timerMove = e.timerMove - dt
+      if e.timerMove <= 0 then
+        e.newDirectionAngle = math.random(20, 40)
+        e.state = STATE_NULL
       end
-    end
-  elseif enemy.state == STATE_CHASE then
-    local distPlayer = MathModule.absoluteDistance(enemy.x, enemy.y, pPlayerX, pPlayerY)
-    local angPlayer = MathModule.getAngle(enemy.x, enemy.y, pPlayerX, pPlayerY, "degAbsolute")
+    elseif e.state == STATE_NULL then
+      e.timerMove = TIMER_MOVE
+      e.timerRadar = TIMER_RADAR
+      e.timerShot = LIST_TIMER_SHOT[e.type]
+      e.angleBarrel = e.angleBody
+      e.timerStepBack = TIMER_STEP_BACK
 
-    if enemy.timerShot > 0 then
-      enemy.timerShot = enemy.timerShot - dt
-    end
+      --if e.counterStepBack == 2 then
+        --e.counterStepBack = 0
+        --e.newDirectionAngle = 180
+      --else
+      e.newDirectionAngle = math.random(30, 90)
+      local CoinFlip = math.random(1, 10)
+      if CoinFlip <= 5 then
+        e.newDirectionAngle = -e.newDirectionAngle
+      end
+      --end
+      e.newRotationTimer = math.abs(e.newDirectionAngle) / SPD_ROTA_TANK
+      e.state = STATE_CHANGEDIR
+    elseif e.state == STATE_RADAR then
+      e.timerRadar = e.timerRadar - dt
 
-    --Si le joueur est dans la zone de détection
-    if distPlayer <= LIST_DIST_DETEC[enemy.type] then
-      --Le tank et le canon se tourne vers le joueur
-      enemy.angleBarrel = RotateElement(enemy.angleBarrel, angPlayer, SPD_ROTA_BARREL, dt)
-      enemy.angleTank = RotateElement(enemy.angleTank, angPlayer, SPD_ROTA_TANK, dt)
+      --Quand timer à 0 on tire si joueur sinon état null pour un nouveau cycle
+      if e.timerRadar <= 0 then
+        local playerIsInArea = PlayerIsInDetectionArea(e.x, e.y, e.angleBody, e.type, pPlayerX, pPlayerY)
+        --Si joueur détecté alors on passe à la procédure de tir
+        if playerIsInArea then
+          e.state = STATE_CHASE
+        else
+          e.newDirectionAngle = math.random(20, 40)
+          e.state = STATE_NULL
+        end
+      end
+    elseif e.state == STATE_CHASE then
+      local distPlayer = MathMod.absoluteDistance(e.x, e.y, pPlayerX, pPlayerY)
+      local angPlayer = MathMod.getAngle(e.x, e.y, pPlayerX, pPlayerY, "degAbsolute")
 
-      --On remet l'angle en 0 et 360°
-      enemy.angleBarrel = ControllAngleElement(enemy.angleBarrel)
-      enemy.angleTank = ControllAngleElement(enemy.angleTank)
-
-      --Le tank suit le joueur s'il s'éloigne
-      if distPlayer >= LIST_DIST_DETEC[enemy.type] * LIST_COEF_DIST_SHOOT[enemy.type] then
-        local vx = SPD_ENEMY * math.cos(math.rad(enemy.angleTank))
-        local vy = SPD_ENEMY * math.sin(math.rad(enemy.angleTank))
-        enemy.x = enemy.x + vx * dt
-        enemy.y = enemy.y + vy * dt
+      if e.timerShot > 0 then
+        e.timerShot = e.timerShot - dt
       end
 
-      --On vérifie la collision avec les bords et les autres ennemis 
-      local isOutOfMap = VerifyCollideWall(enemy.x, enemy.y)
-      local isCollideWithOtherEnemy = VerifyCollideWidthEnemies(enemy.x, enemy.y, pIndex)
+      --Si le joueur est dans la zone de détection
+      if distPlayer <= LIST_DIST_DETEC[e.type] then
+        --Le tank et le canon se tourne vers le joueur
+        e.angleBarrel = RotateElement(e.angleBarrel, angPlayer, SPD_ROTA_BARREL, dt)
+        e.angleBody = RotateElement(e.angleBody, angPlayer, SPD_ROTA_TANK, dt)
 
-      if isOutOfMap or isCollideWithOtherEnemy then
-        enemy.x = oldPosX
-        enemy.y = oldPosY
-        enemy.newDirectionAngle = math.random(45, 90)
-        enemy.state = STATE_STEPBACK
-      else
-        --Si le joueur est proche et que le canon pointe vers lui on tire
-        local newDistPlayer = MathModule.absoluteDistance(enemy.x, enemy.y, pPlayerX, pPlayerY)
-        local diffAngleBarrelAndPlayer = math.abs(enemy.angleBarrel - angPlayer)
+        --On remet l'angle en 0 et 360°
+        e.angleBarrel = ControllAngleElement(e.angleBarrel)
+        e.angleBody = ControllAngleElement(e.angleBody)
 
-        if newDistPlayer <= LIST_DIST_DETEC[enemy.type] * LIST_COEF_DIST_SHOOT[enemy.type] and 
-        enemy.timerShot <= 0 then
-          enemy.state = STATE_SHOOT
-          if enemy.type == 3 then
-            local CoinFlip = math.random(0, 1)
-            if CoinFlip == 0 then
-              enemy.directionShot = LIST_ANGLE_DETEC[enemy.type] / 5
-            else
-              enemy.directionShot = -LIST_ANGLE_DETEC[enemy.type] / 5
+        --Le tank suit le joueur s'il s'éloigne
+        if distPlayer >= LIST_DIST_DETEC[e.type] * LIST_COEF_DIST_SHOOT[e.type] then
+          e.x = CalculNewPosByAxe(e.x, e.angleBody, LIST_SPD_ENEMIES[e.type] , "cos", dt)
+          e.y = CalculNewPosByAxe(e.y, e.angleBody, LIST_SPD_ENEMIES[e.type] , "sin", dt)
+        end
+
+        --On vérifie la collision avec les bords et les autres ennemis
+        local isOutOfMap = VerifyCollideWall(e.x, e.y)
+        local isCollideWithOtherEnemy = VerifyCollideWidthEntities(e.x, e.y, pIndex)
+
+        if isOutOfMap or isCollideWithOtherEnemy then
+          e.x = oldPosX
+          e.y = oldPosY
+          e.state = STATE_STEPBACK
+        else
+          --Si le joueur est proche et que le canon pointe vers lui on tire
+          local newDistPlayer = MathMod.absoluteDistance(e.x, e.y, pPlayerX, pPlayerY)
+          local diffAngleBarrelAndPlayer = math.abs(e.angleBarrel - angPlayer)
+
+          if newDistPlayer <= LIST_DIST_DETEC[e.type] * LIST_COEF_DIST_SHOOT[e.type] and e.timerShot <= 0 then
+            e.state = STATE_SHOOT
+            if e.type == 3 then
+              local CoinFlip = math.random(0, 1)
+              if CoinFlip == 0 then
+                e.directionShot = LIST_ANGLE_DETEC[e.type] / 5
+              else
+                e.directionShot = -LIST_ANGLE_DETEC[e.type] / 5
+              end
             end
           end
         end
-      end
-    else
-      enemy.state = STATE_NULL
-    end
-  elseif enemy.state == STATE_CHANGEDIR then
-    enemy.newRotationTimer = enemy.newRotationTimer - dt
-
-    --Le tank se tourne vers sa nouvelle direction
-    local rotation = SPD_ROTA_TANK * (enemy.newDirectionAngle / math.abs(enemy.newDirectionAngle))
-    enemy.angleTank = enemy.angleTank + rotation * dt
-    enemy.angleTank = ControllAngleElement(enemy.angleTank)
-    enemy.angleBarrel = enemy.angleTank
-
-    if enemy.newRotationTimer <= 0 then
-      enemy.state = STATE_MOVE
-    end
-  elseif enemy.state == STATE_MOVE then
-    enemy.timerMove = enemy.timerMove - dt
-    local vx = SPD_ENEMY * math.cos(math.rad(enemy.angleTank))
-    local vy = SPD_ENEMY * math.sin(math.rad(enemy.angleTank))
-    enemy.x = enemy.x + vx * dt
-    enemy.y = enemy.y + vy * dt
-
-    local isOutOfMap = VerifyCollideWall(enemy.x, enemy.y)
-    local isCollideWithOtherEnemy = VerifyCollideWidthEnemies(enemy.x, enemy.y, pIndex)
-    
-    if isOutOfMap or isCollideWithOtherEnemy then
-      enemy.x = oldPosX
-      enemy.y = oldPosY
-      enemy.state = STATE_STEPBACK
-    else
-      if enemy.timerMove <= 0 then
-        enemy.state = STATE_RADAR
-      end
-    end
-
-  elseif enemy.state == STATE_STEPBACK then
-    enemy.timerStepBack = enemy.timerStepBack - dt
-    local vx = (-SPD_ENEMY / 2) * math.cos(math.rad(enemy.angleTank))
-    local vy = (-SPD_ENEMY / 2) * math.sin(math.rad(enemy.angleTank))
-    enemy.x = enemy.x + vx * dt
-    enemy.y = enemy.y + vy * dt
-
-    if enemy.timerStepBack <= 0 then
-      enemy.timerStepBack = 0
-      enemy.newDirectionAngle = math.random(45, 90)
-      enemy.state = STATE_NULL
-    end
-  elseif enemy.state == STATE_SHOOT then
-    --Position de départ du tir
-    local x = enemy.x + math.cos(math.rad(enemy.angleBarrel)) * BARREL_WIDTH
-    local y = enemy.y + math.sin(math.rad(enemy.angleBarrel)) * BARREL_WIDTH
-
-    if enemy.type == 1 or enemy.type == 2 then
-      ShotModule.Shoot(x, y, enemy.angleBarrel, LIST_BUL_SPEED[enemy.type], enemy.type, "enemy")
-      enemy.timerShot = LIST_TIMER_SHOT[enemy.type]
-      enemy.state = STATE_CHASE
-
-    elseif enemy.type == 3 then
-      --Le timer diminue
-      enemy.rateOfFire = enemy.rateOfFire - dt
-
-      --Le canon tourne pour le prochain tir
-      if enemy.magazine == 3 then
-        enemy.angleBarrel = enemy.angleBarrel + enemy.directionShot * dt
       else
-        enemy.angleBarrel = enemy.angleBarrel - enemy.directionShot * dt
+        e.state = STATE_NULL
+      end
+    elseif e.state == STATE_CHANGEDIR then
+      e.newRotationTimer = e.newRotationTimer - dt
+
+      --Le tank se tourne vers sa nouvelle direction
+      local rotation = SPD_ROTA_TANK * (e.newDirectionAngle / math.abs(e.newDirectionAngle))
+      e.angleBody = e.angleBody + rotation * dt
+      e.angleBody = ControllAngleElement(e.angleBody)
+      e.angleBarrel = e.angleBody
+
+      if e.newRotationTimer <= 0 then
+        e.state = STATE_MOVE
+      end
+    elseif e.state == STATE_MOVE then
+      e.timerMove = e.timerMove - dt
+      e.x = CalculNewPosByAxe(e.x, e.angleBody, LIST_SPD_ENEMIES[e.type] , "cos", dt)
+      e.y = CalculNewPosByAxe(e.y, e.angleBody, LIST_SPD_ENEMIES[e.type] , "sin", dt)
+
+      local isOutOfMap = VerifyCollideWall(e.x, e.y)
+      local isCollideWithOtherEnemy = VerifyCollideWidthEntities(e.x, e.y, pIndex)
+
+      if isOutOfMap or isCollideWithOtherEnemy then
+        e.x = oldPosX
+        e.y = oldPosY
+        e.state = STATE_NULL
+      else
+        if e.timerMove <= 0 then
+          e.state = STATE_RADAR
+        end
+      end
+    elseif e.state == STATE_SHOOT then
+      if e.type == 1 or e.type == 2 then
+        e.isShooting = true
+        e.timerShot = LIST_TIMER_SHOT[e.type]
+        e.state = STATE_CHASE
+      elseif e.type == 3 then
+        --Le timer diminue
+        e.rateOfFire = e.rateOfFire - dt
+
+        --Le canon tourne pour le prochain tir
+        if e.magazine == 3 then
+          e.angleBarrel = e.angleBarrel + e.directionShot * dt
+        else
+          e.angleBarrel = e.angleBarrel - e.directionShot * dt
+        end
+
+        --quand le timer est finit le tank tir un missile
+        if e.rateOfFire <= 0 then
+          e.isShooting = true
+          e.magazine = e.magazine - 1
+          e.rateOfFire = LIST_RATE_OF_FIRE[e.type]
+        end
+
+        --Quand le chargeur est vide on change de mode
+        if e.magazine == 0 then
+          e.magazine = 3
+          e.timerShot = LIST_TIMER_SHOT[e.type]
+          e.state = STATE_CHASE
+        end
+      end
+    end
+  elseif e.type == 4 then
+    if e.state == STATE_SPAWN then
+      e.x = CalculNewPosByAxe(e.x, e.angleBody, LIST_SPD_ENEMIES[e.type] , "cos", dt)
+      e.y = CalculNewPosByAxe(e.y, e.angleBody, LIST_SPD_ENEMIES[e.type] , "sin", dt)
+
+      e.timerMove = e.timerMove - dt
+      if e.timerMove <= 0 then
+        e.state = STATE_TARGET
+      end
+    elseif e.state == STATE_TARGET then
+      --Nouvelle cible
+      if e.isEmpty then
+      --Le drone cible une mine
+        local idMine = TargetCloserSpot(e.x, e.y, "mine")
+        e.target = {
+          id = idMine,
+          x = MiningMod.listSites[idMine].x,
+          y = MiningMod.listSites[idMine].y
+        }
+      else
+      --Le drone cible un depot
+        local idDeposit = TargetCloserSpot(e.x, e.y, "deposit")
+        e.target = {
+          id = idDeposit,
+          x = LIST_DEPOSIT_SITES[idDeposit].x,
+          y = LIST_DEPOSIT_SITES[idDeposit].y
+        }
       end
 
-      --quand le timer est finit le tank tir un missile
-      if enemy.rateOfFire <= 0 then
-        ShotModule.Shoot(x, y, enemy.angleBarrel, LIST_BUL_SPEED[enemy.type], enemy.type, "enemy")
-        enemy.magazine = enemy.magazine - 1
-        enemy.rateOfFire = LIST_RATE_OF_FIRE[enemy.type]
-      end
+      --Nouvel angle
+      e.state = STATE_MOVE
+    
+    elseif e.state == STATE_MOVE then
+      --rotation du drone
+      local angTarget = MathMod.getAngle(e.x, e.y, e.target.x, e.target.y, "degAbsolute")
+      e.angleBody = RotateElement(e.angleBody, angTarget, SPD_ROTA_TANK, dt)
+      e.angleBody = ControllAngleElement(e.angleBody)
 
-      --Quand le chargeur est vide on change de mode
-      if enemy.magazine == 0 then
-        enemy.magazine = 3
-        enemy.timerShot = LIST_TIMER_SHOT[enemy.type]
-        enemy.state = STATE_CHASE
+      --déplacement du drone
+      if math.abs(angTarget - e.angleBody) <= 5 then
+        e.x = CalculNewPosByAxe(e.x, e.angleBody, LIST_SPD_ENEMIES[e.type] , "cos", dt)
+        e.y = CalculNewPosByAxe(e.y, e.angleBody, LIST_SPD_ENEMIES[e.type] , "sin", dt)
+        
+        if e.isEmpty then
+          --On vérifie qu'on est sur la mine
+          local t = MiningMod.listSites[e.target.id]
+          local isCollideTarget = MathMod.verifyCollideGeneral(
+            e.x, e.y, e.w / 2, e.h / 2,
+            t.x, t.y, MiningMod.mineW, MiningMod.mineH
+          )
+          if isCollideTarget then
+            e.isEmpty = false
+            e.state = STATE_MINE
+          end
+        else
+          --On vérifie qu'on est sur le dépot
+          local t = LIST_DEPOSIT_SITES[e.target.id]
+          local isCollideTarget = MathMod.verifyCollideGeneral(
+            e.x, e.y, e.w / 2, e.h / 2,
+            t.x, t.y, DEPOSIT_SITE_SIZE, DEPOSIT_SITE_SIZE
+          )
+          if isCollideTarget then
+            e.state = STATE_RUNDOWN
+          end
+        end
+      end
+    elseif e.state == STATE_MINE then
+      e.timerExtract = e.timerExtract - dt
+      if e.timerExtract <= 0 then
+        e.isEmpty = false
+        e.state = STATE_TARGET
+      end
+    elseif e.state == STATE_RUNDOWN then
+      e.timerRunDown = e.timerRunDown - dt 
+      if e.timerRunDown <= 0 then
+        e.timerRunDown = 0
+        e.isTaskFinished = true
       end
     end
   end
 end
 
-function enemyModule.update(dt, pPlayerX, pPlayerY)
+function enemyModule.update(dt, pPlayer)
   --spawn des ennemis
-  if enemiesStock > 0 then
+  --[[if enemiesStock > 0 then
     timerSpawn = timerSpawn - dt
     if timerSpawn < 0 then
-      timerSpawn = TIMER_SPAWN_REF
+      timerSpawn = TIMER_SPAWN_TANK_REF
       CreateEnemy(math.random(1, 3))
       enemiesStock = enemiesStock - 1
     end
+  end]]
+
+  timerSpawnDrone = timerSpawnDrone - dt
+  if timerSpawnDrone <= 0 then
+    timerSpawnDrone = TIMER_SPAWN_DRONE_REF
+    CreateEnemy(4)
   end
 
   --update des ennemis
-  if #enemyModule.listEnemies > 0 then
-    for n = 1, #enemyModule.listEnemies do
-      UpdateEnemyByState(n, dt, pPlayerX, pPlayerY)
-    end
+  for n = 1, #enemyModule.listEnemies do
+    UpdateEnemyByState(n, dt, pPlayer.x, pPlayer.y)
   end
 
-  --collision avec les tirs du joueur
-  if #ShotModule.listShots > 0 and #enemyModule.listEnemies > 0 then
-    --Pour chaque enemy
-    for n = 1, #enemyModule.listEnemies do
-      local e = enemyModule.listEnemies[n]
-
-      --Pour chaque tirs
-      for n = 1, #ShotModule.listShots do
-        local s = ShotModule.listShots[n]
-
-        --Si le tir provient du joueur
-        if s.team == "ally" then
-          --Si le tir touche
-          if
-            s.x >= e.x - (TANK_WIDTH / 2) and s.x <= e.x + (TANK_WIDTH / 2) and s.y >= e.y - (TANK_HEIGHT / 2) and
-              s.y <= e.y + (TANK_HEIGHT / 2)
-           then
-            s.isDeletable = true
-            e.hp = e.hp - s.type
-            ExplodeModule.createExplode(s.x, s.y, 0.1, "simple")
-          end
-        end
-      end
-    end
-  end
-
-  --Mort d'un ennemi
+  --Mort/Suppression d'un ennemi
   for n = #enemyModule.listEnemies, 1, -1 do
+    --On supprime les ennemis morts 
     local e = enemyModule.listEnemies[n]
     if e.hp <= 0 then
-      Tank.score = Tank.score + 1
+      enemyModule.scorePlayer = enemyModule.scorePlayer + 1
       for n = 1, math.random(3, 5) do
-        local x = math.random(e.x - TANK_WIDTH / 2, e.x + TANK_WIDTH / 2)
-        local y = math.random(e.y - TANK_HEIGHT / 2, e.y + TANK_HEIGHT / 2)
+        local x = math.random(e.x - enemyModule.TANK_WIDTH / 2, e.x + enemyModule.TANK_WIDTH / 2)
+        local y = math.random(e.y - enemyModule.TANK_HEIGHT / 2, e.y + enemyModule.TANK_HEIGHT / 2)
         local timer = math.random(100, 200) / 1000
         ExplodeModule.createExplode(x, y, timer, "simple")
       end
+      table.remove(enemyModule.listEnemies, n)
+    end
+
+    --On supprime les drone qui ont fini leur mission
+    if e.type == 4 and e.isTaskFinished then
       table.remove(enemyModule.listEnemies, n)
     end
   end
@@ -508,35 +681,45 @@ function enemyModule.update(dt, pPlayerX, pPlayerY)
 end
 
 function enemyModule.draw()
-  if #enemyModule.listEnemies > 0 then
-    for n = 1, #enemyModule.listEnemies do
-      local enemy = enemyModule.listEnemies[n]
-      local imageTank = LIST_IMG_TANKS[enemy.type]
-      local imageBarrel = LIST_IMG_BARREL[enemy.type]
+  for n = 1, #enemyModule.listEnemies do
+    local e = enemyModule.listEnemies[n]
 
+    if e.type < 4 then
+      local imageBarrel = LIST_IMG_BARREL[e.type]
       love.graphics.draw(
-        imageTank,
-        enemy.x,
-        enemy.y,
-        math.rad(enemy.angleTank),
+        e.imgBody,
+        e.x,
+        e.y,
+        math.rad(e.angleBody),
         1,
         1,
-        imageTank:getWidth() / 2,
-        imageTank:getHeight() / 2
+        e.w / 2,
+        e.h / 2
       )
       love.graphics.draw(
         imageBarrel,
-        enemy.x,
-        enemy.y,
-        math.rad(enemy.angleBarrel),
+        e.x,
+        e.y,
+        math.rad(e.angleBarrel),
         1,
         1,
         5,
         imageBarrel:getHeight() / 2
       )
-
-      love.graphics.print(enemy.state, enemy.x - 35, enemy.y - 40)
+    else
+      love.graphics.draw(
+        e.imgBody,
+        e.x,
+        e.y,
+        math.rad(e.angleBody),
+        1,
+        1,
+        e.w / 2,
+        e.h / 2
+      )
     end
+
+    --love.graphics.print(e.state, e.x - 35, e.y - 40)
   end
 end
 

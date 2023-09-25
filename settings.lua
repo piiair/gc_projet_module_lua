@@ -1,10 +1,10 @@
-local infos = {}
+local settings = {}
 
 --La fenêtre
 love.window.setMode(1080, 720)
 --love.window.setTitle("Tank quelque chose")
-infos.screenW = love.graphics.getWidth()
-infos.screenH = love.graphics.getHeight()
+settings.screenW = love.graphics.getWidth()
+settings.screenH = love.graphics.getHeight()
 
 --La souris
 local MouseImage = love.graphics.newImage("images/cursor.png")
@@ -13,4 +13,4 @@ MouseImage:getHeight() / 2)
 
 love.mouse.setCursor(MouseCursor)
 
-return infos
+return settings
