@@ -1,6 +1,8 @@
 local game = {}
 
 local SettingsMod = require("settings")
+local GoldMod = require("gold")
+local DepositMod = require("deposit")
 local ExplodeModule = require("explodeModule")
 local MiningModule = require("miningModule")
 local Tank = require("tank")
@@ -16,6 +18,7 @@ local function resetModules()
   EnemyModule.reset()
   ShotModule.listShots = nil
   ExplodeModule.listExplodes = nil
+  GoldMod.listCoin = nil
 end
 
 local function startNewGame()
@@ -24,6 +27,7 @@ local function startNewGame()
   EnemyModule.load()
   MiningModule.load(Tank)
   ExplodeModule.load()
+  GoldMod.load()
   GuiGame.loadGameGroup()
 end
 
@@ -50,15 +54,16 @@ function game.update(dt)
     EnemyModule.update(dt, Tank)
     ShotModule.update(dt)
     MiningModule.update()
+    GoldMod.update(dt)
     GuiGame.updateGameGroup(dt)
 
-    --changement si victoire ou defaite
-    if EnemyModule.playerVictory then
-      GameMode = "victory"
-      GuiGame.loadVictoryGroup()
-    elseif Tank.gameOver then
+    --changement si victoire ou defaite (priorité à la défaite en cas d'égalité)
+    if Tank.gameOver then
       GameMode = "gameOver"
       GuiGame.loadGameOverGroup()
+    elseif EnemyModule.playerVictory then
+      GameMode = "victory"
+      GuiGame.loadVictoryGroup()
     end
   elseif GameMode == "victory" then
     GuiGame.updateVictoryGroup(dt)
@@ -93,26 +98,31 @@ function game.draw()
   elseif GameMode == "game" then
     --elseif GameMode == "break" then
     ShotModule.draw()
+    MiningModule.draw()
+    DepositMod.draw()
+    GoldMod.draw()
     Tank.draw()
     EnemyModule.draw()
-    MiningModule.draw()
     ExplodeModule.draw()
-    GuiGame.gameGroup.draw()
+    GuiGame.gameGroup:draw()
     GuiGame.gameGroup.hpBarsGroup:draw()
   elseif GameMode == "victory" then
     love.graphics.setColor(0.5, 0.5, 0.5, 1)
     ShotModule.draw()
+    MiningModule.draw()
+    DepositMod.draw()
+    GoldMod.draw()
     Tank.draw()
     EnemyModule.draw()
-    MiningModule.draw()
     love.graphics.setColor(1, 1, 1)
     GuiGame.victoryGroup.draw()
   elseif GameMode == "gameOver" then
     love.graphics.setColor(0.5, 0.5, 0.5, 1)
     ShotModule.draw()
-    EnemyModule.draw()
     MiningModule.draw()
-
+    DepositMod.draw()
+    GoldMod.draw()
+    EnemyModule.draw()
     love.graphics.setColor(1, 1, 1)
     GuiGame.gameOverGroup.draw()
   end
@@ -126,13 +136,6 @@ function love.keypressed(key)
       resetModules()
       GameMode = "menu"
       GuiGame.loadMenuGroup()
-    end
-  end
-
-  if key == "return" then
-    if GameMode == "gameOver" then
-      GameMode = "game"
-      startNewGame()
     end
   end
 end

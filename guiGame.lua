@@ -2,6 +2,7 @@ local GuiGame = {}
 
 local GCGUI = require("GCGUI")
 local SettingsMod = require("settings")
+local GoldMod = require("gold")
 local Tank = require("tank")
 local EnemyMod = require("enemyModule")
 
@@ -9,6 +10,9 @@ local imageButton = {}
 imageButton.image = love.graphics.newImage("images/button.png")
 imageButton.w = imageButton.image:getWidth()
 imageButton.h = imageButton.image:getHeight()
+
+local W = SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER
+local H = SettingsMod.screenH
 
 local PROG_BAR_SIZE = 6
 local BAR_HP_COLOR_OUT = {
@@ -51,12 +55,36 @@ function GuiGame.loadGameGroup()
     GCGUI.newProgressBar(0, 0, Tank.widthTank, PROG_BAR_SIZE, Tank.hpMax, BAR_HP_COLOR_OUT, BAR_HP_COLOR_IN)
   gameHpBarPlayer:setValue(Tank.hp)
 
-  local text = "Enemies remaining: " .. tostring(EnemyMod.ENEMIES_PER_LEVEL[1] - Tank.score)
-  local remainingEnemiesPanel =
-    GCGUI.newText(SettingsMod.screenW - 300, 10, 200, 25, text, GCGUI.font, "center", "center")
+  --Gui du joueur avec les infos InGame utiles et les boutons d'upgrade
+  local guiPlayer = GCGUI.newGroup()
+  local panelBG = GCGUI.newPanel(W, 0, SettingsMod.MARGIN_GUI_PLAYER, H, {50 / 255, 40 / 255, 10 / 255})
+  local margL = 5
+
+  local text = "Enemies remaining: " .. tostring(EnemyMod.enemiesStock)
+  local textEnemiesRemaining = GCGUI.newText(
+    W + margL, 0, SettingsMod.MARGIN_GUI_PLAYER, 30, 
+    text, GCGUI.font, "", "center"
+  )
+
+  local scoreText = "Enemies killed: "..tostring(EnemyMod.scorePlayer)
+  local scorePanel = GCGUI.newText(
+    W + margL, 40, SettingsMod.MARGIN_GUI_PLAYER, 30, 
+    scoreText, GCGUI.font, "", "center"
+  )
+
+  local goldText = "Golds: "..tostring(Tank.goldStock)
+  local goldPanel = GCGUI.newText(
+    W + margL, 80, SettingsMod.MARGIN_GUI_PLAYER, 30, 
+    goldText, GCGUI.font, "", "center"
+  )
+
+  guiPlayer:addElement(panelBG)
+  guiPlayer:addElement(textEnemiesRemaining)
+  guiPlayer:addElement(scorePanel)
+  guiPlayer:addElement(goldPanel)
 
   GuiGame.gameGroup:addElement(gameHpBarPlayer)
-  GuiGame.gameGroup:addElement(remainingEnemiesPanel)
+  GuiGame.gameGroup:addElement(guiPlayer)
   GuiGame.gameGroup.hpBarsGroup = GCGUI.newGroup()
 end
 
@@ -68,10 +96,11 @@ local function AddHpBarEnemy(pEnemy)
     e.y - EnemyMod.TANK_HEIGHT / 2,
     EnemyMod.TANK_WIDTH,
     PROG_BAR_SIZE,
-    e.hp,
+    e.hpMax,
     BAR_HP_COLOR_OUT,
     BAR_HP_COLOR_IN
   )
+  bar.id = e.id
   GuiGame.gameGroup.hpBarsGroup:addElement(bar)
 end
 
@@ -82,20 +111,64 @@ function GuiGame.updateGameGroup(dt)
   GuiGame.gameGroup.elements[1]:setValue(Tank.hp)
   GuiGame.gameGroup.elements[1].setPosition(Tank.x - Tank.widthTank / 2, Tank.y - Tank.heightTank - 10)
 
-  --Le score
-  local text = "Enemies remaining: " .. tostring(EnemyMod.ENEMIES_PER_LEVEL[1] - EnemyMod.scorePlayer)
-  GuiGame.gameGroup.elements[2]:updateText(text)
-
   --Les barres hp des ennemis
   local groupBar = GuiGame.gameGroup.hpBarsGroup
-  for n = 1, #EnemyMod.listEnemies do
-    local e = EnemyMod.listEnemies[n]
-    if not groupBar.elements[e.id] then
-      local b = AddHpBarEnemy(e)
+
+  --Suppression des barres obsolètes
+  for n = #EnemyMod.listDeadIds, 1, -1 do
+    local id = EnemyMod.listDeadIds[n]
+    for o = #groupBar.elements, 1, -1 do
+      local bar = groupBar.elements[o]
+      if bar.id == id then
+        table.remove(groupBar.elements, o)
+        table.remove(EnemyMod.listDeadIds, n)
+      end
     end
-    groupBar.elements[e.id]:setValue(e.hp)
-    groupBar.elements[e.id].setPosition(e.x - e.w / 2, e.y - e.h / 2 - 10)
   end
+
+  --Ajout des barres des nouveaux ennemis
+  for n = 1, #EnemyMod.listEnemies do
+    --création d'une barre
+    local e = EnemyMod.listEnemies[n]
+    local hasABar = false
+    --On vérifie si l'ennemi a déjà une barre 
+    for o = 1, #groupBar.elements do
+      local bar = groupBar.elements[o]
+      if e.id == bar.id then
+        hasABar = true
+      end
+    end  
+    --On en crée une dans le cas contraire
+    if hasABar == false then
+      AddHpBarEnemy(e)
+    end
+  end
+
+  --update des barres
+  for n = 1, #groupBar.elements do 
+    local bar = groupBar.elements[n]
+    for i = 1, #EnemyMod.listEnemies do
+      local e = EnemyMod.listEnemies[i]
+      if e.id == bar.id then
+        bar:setValue(e.hp)
+        bar.setPosition(e.x - e.w / 2, e.y - e.h / 2 - 10)
+      end
+    end
+  end
+
+  --Le gui player
+  --Les ennemis restants
+  local textEnemies = "Enemies remaining: " .. tostring(EnemyMod.enemiesStock)
+  GuiGame.gameGroup.elements[2].elements[2]:updateText(textEnemies)
+
+  --Le score du joueur
+  local scoreText = "Enemies killed: "..tostring(EnemyMod.scorePlayer)
+  GuiGame.gameGroup.elements[2].elements[3]:updateText(scoreText)
+
+  --Les golds du joueur
+  local goldText = "Golds: "..tostring(Tank.goldStock)
+  GuiGame.gameGroup.elements[2].elements[4]:updateText(goldText)
+
 end
 
 function GuiGame.drawHpBars()
@@ -167,7 +240,7 @@ function GuiGame.loadGameOverGroup()
   gameOverButtonMenu:setImage(imageButton.image)
 
   local enemyOrEnemies
-  if Tank.score > 1 then
+  if EnemyMod.scorePlayer > 1 then
     enemyOrEnemies = " enemies."
   else
     enemyOrEnemies = " enemy."

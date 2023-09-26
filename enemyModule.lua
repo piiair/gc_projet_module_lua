@@ -2,9 +2,10 @@ local enemyModule = {}
 
 local SettingsMod = require("settings")
 local MathMod = require("utilMath")
+local GoldMod = require("gold")
 local MiningMod = require("miningModule")
 local ExplodeModule = require("explodeModule")
-
+local DepositMod = require("deposit")
 
 local LIST_IMG_TANKS = {}
 LIST_IMG_TANKS[1] = love.graphics.newImage("images/enemyTank1.png")
@@ -34,9 +35,9 @@ LIST_HP_ENEMIES[3] = 6
 LIST_HP_ENEMIES[4] = 2
 
 local LIST_DIST_DETEC = {}
-LIST_DIST_DETEC[1] = 350
-LIST_DIST_DETEC[2] = 400
-LIST_DIST_DETEC[3] = 750
+LIST_DIST_DETEC[1] = 325
+LIST_DIST_DETEC[2] = 375
+LIST_DIST_DETEC[3] = 725
 
 local LIST_COEF_DIST_SHOOT = {}
 LIST_COEF_DIST_SHOOT[1] = 0.75
@@ -44,23 +45,23 @@ LIST_COEF_DIST_SHOOT[2] = 0.5
 LIST_COEF_DIST_SHOOT[3] = 0.85
 
 local LIST_ANGLE_DETEC = {}
-LIST_ANGLE_DETEC[1] = 40
-LIST_ANGLE_DETEC[2] = 50
-LIST_ANGLE_DETEC[3] = 60
+LIST_ANGLE_DETEC[1] = 60
+LIST_ANGLE_DETEC[2] = 70
+LIST_ANGLE_DETEC[3] = 80
 
 local LIST_TIMER_MOVE = {}
-LIST_TIMER_MOVE[1] = 1
+LIST_TIMER_MOVE[1] = 0.5
 LIST_TIMER_MOVE[2] = 1
-LIST_TIMER_MOVE[3] = 1
+LIST_TIMER_MOVE[3] = 2
 LIST_TIMER_MOVE[4] = 0.15
 
 local LIST_TIMER_SHOT = {}
-LIST_TIMER_SHOT[1] = 0.75
-LIST_TIMER_SHOT[2] = 1
+LIST_TIMER_SHOT[1] = 1.25
+LIST_TIMER_SHOT[2] = 0.75
 LIST_TIMER_SHOT[3] = 3
 
 local LIST_RATE_OF_FIRE = {}
-LIST_RATE_OF_FIRE[3] = 1
+LIST_RATE_OF_FIRE[3] = 0.75
 
 local LIST_MAGAZINE = {}
 LIST_MAGAZINE[3] = 3
@@ -77,14 +78,12 @@ local TIMER_RUNDOWN = 4
 local BASE_HP = 2
 
 --Spawn
-local TIMER_SPAWN_TANK_REF = 3
-local TIMER_SPAWN_DRONE_REF = 3
+local TIMER_SPAWN_TANK_REF = 5
+local TIMER_SPAWN_DRONE_REF = 5
 local timerSpawn = nil
 local timerSpawnDrone = nil
 
 local LIST_SPAWN = {}
-local LIST_DEPOSIT_SITES = {}
-local DEPOSIT_SITE_SIZE = 32
 
 --machine à états
 local STATE_SPAWN = "spawn"
@@ -98,10 +97,10 @@ local STATE_TARGET = "target"
 local STATE_MINE = "mine"
 local STATE_RUNDOWN = "runDown"
 
-
 local countEnemy = nil
-local enemiesStock = nil
+enemyModule.enemiesStock = nil
 enemyModule.listEnemies = nil
+enemyModule.listDeadIds = nil
 enemyModule.playerVictory = nil
 enemyModule.scorePlayer = nil
 
@@ -109,51 +108,55 @@ function enemyModule.reset()
   timerSpawn = nil
   timerSpawnDrone = nil
   countEnemy = nil
-  enemiesStock = nil
+  enemyModule.enemiesStock = nil
   enemyModule.listEnemies = nil
+  enemyModule.listDeadIds = nil
   enemyModule.playerVictory = nil
-  enemymodule.scorePlayer = nil
+  enemyModule.scorePlayer = nil
 end
 
 local function loadSpawns()
+  local W = SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER
+  local H = SettingsMod.screenH
+
   local spawn1 = {}
   spawn1.x = 0
-  spawn1.y = SettingsMod.screenH - (SettingsMod.screenH / 4)
+  spawn1.y = H - (H / 4)
   spawn1.angle = 0
 
   local spawn2 = {}
   spawn2.x = 0
-  spawn2.y = SettingsMod.screenH / 4
+  spawn2.y = H / 4
   spawn2.angle = 0
 
   local spawn3 = {}
-  spawn3.x = SettingsMod.screenW / 3
+  spawn3.x = W / 3
   spawn3.y = 0
   spawn3.angle = 90
 
   local spawn4 = {}
-  spawn4.x = SettingsMod.screenW - (SettingsMod.screenW / 3)
+  spawn4.x = W - (W / 3)
   spawn4.y = 0
   spawn4.angle = 90
 
   local spawn5 = {}
-  spawn5.x = SettingsMod.screenW
-  spawn5.y = SettingsMod.screenH / 4
+  spawn5.x = W
+  spawn5.y = H / 4
   spawn5.angle = 180
 
   local spawn6 = {}
-  spawn6.x = SettingsMod.screenW
-  spawn6.y = SettingsMod.screenH - (SettingsMod.screenH / 4)
+  spawn6.x = W
+  spawn6.y = H - (H / 4)
   spawn6.angle = 180
 
   local spawn7 = {}
-  spawn7.x = SettingsMod.screenW - (SettingsMod.screenW / 3)
-  spawn7.y = SettingsMod.screenH
+  spawn7.x = W - (W / 3)
+  spawn7.y = H
   spawn7.angle = 270
 
   local spawn8 = {}
-  spawn8.x = SettingsMod.screenW / 3
-  spawn8.y = SettingsMod.screenH
+  spawn8.x = W / 3
+  spawn8.y = H
   spawn8.angle = 270
 
   table.insert(LIST_SPAWN, spawn1)
@@ -166,43 +169,17 @@ local function loadSpawns()
   table.insert(LIST_SPAWN, spawn8)
 end
 
-local function loadDepositSites()
-  local s1 = {
-    x = 0 + DEPOSIT_SITE_SIZE / 2, 
-    y = SettingsMod.screenH / 2
-  }
-
-  local s2 = {
-    x = SettingsMod.screenW / 2, 
-    y = 0 + DEPOSIT_SITE_SIZE / 2
-  }
-
-  local s3 = {
-    x =  SettingsMod.screenW - DEPOSIT_SITE_SIZE / 2, 
-    y = SettingsMod.screenH / 2
-  }
-
-  local s4 = {
-    x = SettingsMod.screenW / 2, 
-    y = SettingsMod.screenH - DEPOSIT_SITE_SIZE / 2
-  }
-
-  table.insert(LIST_DEPOSIT_SITES, s1)
-  table.insert(LIST_DEPOSIT_SITES, s2)
-  table.insert(LIST_DEPOSIT_SITES, s3)
-  table.insert(LIST_DEPOSIT_SITES, s4)
-end
-
 function enemyModule.load()
   enemyModule.listEnemies = {}
+  enemyModule.listDeadIds = {}
   countEnemy = 0
-  enemiesStock = enemyModule.ENEMIES_PER_LEVEL[1]
+  enemyModule.enemiesStock = enemyModule.ENEMIES_PER_LEVEL[1]
   timerSpawn = 1.5
   timerSpawnDrone = 0
   enemyModule.scorePlayer = 0
   enemyModule.playerVictory = false
   loadSpawns()
-  loadDepositSites()
+  DepositMod.loadDepositSites()
 end
 
 local function TargetCloserSpot(pDroneX, pDroneY, pSpotType)
@@ -221,10 +198,10 @@ local function TargetCloserSpot(pDroneX, pDroneY, pSpotType)
     end
 
   elseif pSpotType == "deposit" then
-    for n = 2, #LIST_DEPOSIT_SITES do 
-      local ref = LIST_DEPOSIT_SITES[iCloser]
+    for n = 2, #DepositMod.LIST_DEPOSIT_SITES do 
+      local ref = DepositMod.LIST_DEPOSIT_SITES[iCloser]
       distCloser = MathMod.absoluteDistance(pDroneX, pDroneY, ref.x, ref.y)
-      local d = LIST_DEPOSIT_SITES[n]
+      local d = DepositMod.LIST_DEPOSIT_SITES[n]
       local distNew = MathMod.absoluteDistance(pDroneX, pDroneY, d.x, d.y)
       if distNew < distCloser then
         iCloser = n
@@ -245,7 +222,8 @@ local function CreateEnemySkeleton(pType)
   skeleton.angleBody = currentSpawn.angle
   skeleton.type = pType
   skeleton.state = STATE_SPAWN
-  skeleton.hp = LIST_HP_ENEMIES[pType]
+  skeleton.hpMax = LIST_HP_ENEMIES[pType]
+  skeleton.hp = skeleton.hpMax
   skeleton.newDirectionAngle = 0
   skeleton.newRotationTimer = 0
   skeleton.timerMove = TIMER_MOVE
@@ -262,7 +240,7 @@ local function CreateEnemy(pType)
   
   if e.type >= 1 and e.type <= 3 then
     e.angleBarrel = e.angleBody
-    e.counterChangeDir = 0
+    e.counterCollide = 0
     e.timerShot = 0
     e.isShooting = false
     if e.type == 1 or e.type == 2 then
@@ -303,10 +281,10 @@ local function PlayerIsInDetectionArea(pEnemyX, pEnemyY, pEnemyAngle, pEnemyType
 end
 
 local function VerifyCollideWall(pEnemyX, pEnemyY)
-  if
-    pEnemyX < 0 + (enemyModule.TANK_WIDTH / 2) or pEnemyX > SettingsMod.screenW - (enemyModule.TANK_WIDTH / 2) or
-      pEnemyY < 0 + (enemyModule.TANK_HEIGHT / 2) or
-      pEnemyY > SettingsMod.screenH - (enemyModule.TANK_HEIGHT / 2)
+  if pEnemyX < 0 + (enemyModule.TANK_WIDTH / 2) or 
+  pEnemyX > SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER - (enemyModule.TANK_WIDTH / 2) or
+  pEnemyY < 0 + (enemyModule.TANK_HEIGHT / 2) or
+  pEnemyY > SettingsMod.screenH - (enemyModule.TANK_HEIGHT / 2)
    then
     return true
   else
@@ -387,6 +365,11 @@ local function CalculNewPosByAxe(pPos, pAngle, pSpeed, pCosOrSin, dt)
   return newPos
 end
 
+local function DeleteEnemy(pN, pId)
+  table.insert(enemyModule.listDeadIds, pId)
+  table.remove(enemyModule.listEnemies, pN)
+end
+
 --Machine à états des ennemis
 local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
   local e = enemyModule.listEnemies[pIndex]
@@ -396,31 +379,40 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
   --Machine à états tank
   if e.type < 4 then 
     if e.state == STATE_SPAWN then
+      local oldPosX = e.x
+      local oldPosY = e.y
+      e.timerMove = e.timerMove - dt
       e.x = CalculNewPosByAxe(e.x, e.angleBody, LIST_SPD_ENEMIES[e.type] , "cos", dt)
       e.y = CalculNewPosByAxe(e.y, e.angleBody, LIST_SPD_ENEMIES[e.type] , "sin", dt)
 
-      e.timerMove = e.timerMove - dt
-      if e.timerMove <= 0 then
-        e.newDirectionAngle = math.random(20, 40)
+      VerifyCollideWidthEntities(e.x, e.y, pIndex)
+
+      if isOutOfMap or isCollideWithOtherEnemy then
+        e.x = oldPosX
+        e.y = oldPosY
         e.state = STATE_NULL
+      else
+        if e.timerMove <= 0 then
+          e.newDirectionAngle = math.random(20, 40)
+          e.state = STATE_NULL
+        end
       end
     elseif e.state == STATE_NULL then
       e.timerMove = TIMER_MOVE
       e.timerRadar = TIMER_RADAR
       e.timerShot = LIST_TIMER_SHOT[e.type]
       e.angleBarrel = e.angleBody
-      e.timerStepBack = TIMER_STEP_BACK
 
-      --if e.counterStepBack == 2 then
-        --e.counterStepBack = 0
-        --e.newDirectionAngle = 180
-      --else
-      e.newDirectionAngle = math.random(30, 90)
-      local CoinFlip = math.random(1, 10)
-      if CoinFlip <= 5 then
-        e.newDirectionAngle = -e.newDirectionAngle
+      if e.counterCollide == 2 then
+        e.counterCollide = 0
+        e.newDirectionAngle = 180
+      else
+        e.newDirectionAngle = math.random(30, 50)
+        local CoinFlip = math.random(1, 10)
+        if CoinFlip <= 5 then
+          e.newDirectionAngle = -e.newDirectionAngle
+        end
       end
-      --end
       e.newRotationTimer = math.abs(e.newDirectionAngle) / SPD_ROTA_TANK
       e.state = STATE_CHANGEDIR
     elseif e.state == STATE_RADAR then
@@ -468,7 +460,8 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
         if isOutOfMap or isCollideWithOtherEnemy then
           e.x = oldPosX
           e.y = oldPosY
-          e.state = STATE_STEPBACK
+          e.counterCollide = e.counterCollide + 1
+          e.state = STATE_NULL
         else
           --Si le joueur est proche et que le canon pointe vers lui on tire
           local newDistPlayer = MathMod.absoluteDistance(e.x, e.y, pPlayerX, pPlayerY)
@@ -512,6 +505,7 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
       if isOutOfMap or isCollideWithOtherEnemy then
         e.x = oldPosX
         e.y = oldPosY
+        e.counterCollide = e.counterCollide + 1
         e.state = STATE_NULL
       else
         if e.timerMove <= 0 then
@@ -573,8 +567,8 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
         local idDeposit = TargetCloserSpot(e.x, e.y, "deposit")
         e.target = {
           id = idDeposit,
-          x = LIST_DEPOSIT_SITES[idDeposit].x,
-          y = LIST_DEPOSIT_SITES[idDeposit].y
+          x = DepositMod.LIST_DEPOSIT_SITES[idDeposit].x,
+          y = DepositMod.LIST_DEPOSIT_SITES[idDeposit].y
         }
       end
 
@@ -605,12 +599,14 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
           end
         else
           --On vérifie qu'on est sur le dépot
-          local t = LIST_DEPOSIT_SITES[e.target.id]
+          local t = DepositMod.LIST_DEPOSIT_SITES[e.target.id]
+          local size = DepositMod.DEPOSIT_SIZE
           local isCollideTarget = MathMod.verifyCollideGeneral(
             e.x, e.y, e.w / 2, e.h / 2,
-            t.x, t.y, DEPOSIT_SITE_SIZE, DEPOSIT_SITE_SIZE
+            t.x, t.y, DepositMod.DEPOSIT_SIZE, DepositMod.DEPOSIT_SIZE
           )
           if isCollideTarget then
+            --Si oui on décharge le drone
             e.state = STATE_RUNDOWN
           end
         end
@@ -633,14 +629,14 @@ end
 
 function enemyModule.update(dt, pPlayer)
   --spawn des ennemis
-  --[[if enemiesStock > 0 then
+  if enemyModule.enemiesStock > 0 then
     timerSpawn = timerSpawn - dt
     if timerSpawn < 0 then
       timerSpawn = TIMER_SPAWN_TANK_REF
       CreateEnemy(math.random(1, 3))
-      enemiesStock = enemiesStock - 1
+      enemyModule.enemiesStock = enemyModule.enemiesStock - 1
     end
-  end]]
+  end
 
   timerSpawnDrone = timerSpawnDrone - dt
   if timerSpawnDrone <= 0 then
@@ -659,23 +655,20 @@ function enemyModule.update(dt, pPlayer)
     local e = enemyModule.listEnemies[n]
     if e.hp <= 0 then
       enemyModule.scorePlayer = enemyModule.scorePlayer + 1
-      for n = 1, math.random(3, 5) do
-        local x = math.random(e.x - enemyModule.TANK_WIDTH / 2, e.x + enemyModule.TANK_WIDTH / 2)
-        local y = math.random(e.y - enemyModule.TANK_HEIGHT / 2, e.y + enemyModule.TANK_HEIGHT / 2)
-        local timer = math.random(100, 200) / 1000
-        ExplodeModule.createExplode(x, y, timer, "simple")
-      end
-      table.remove(enemyModule.listEnemies, n)
+      GoldMod.genereGold(e)
+      ExplodeModule.createMultiExplode(e.x, e.y, enemyModule.TANK_WIDTH, enemyModule.TANK_HEIGHT)
+      DeleteEnemy(n, e.id)
     end
 
     --On supprime les drone qui ont fini leur mission
     if e.type == 4 and e.isTaskFinished then
-      table.remove(enemyModule.listEnemies, n)
+      enemyModule.enemiesStock = enemyModule.enemiesStock + 1
+      DeleteEnemy(n, e.id)
     end
   end
 
   --Victoire du joueur
-  if enemiesStock == 0 and #enemyModule.listEnemies == 0 and #ExplodeModule.listExplodes == 0 then
+  if enemyModule.enemiesStock == 0 and #enemyModule.listEnemies == 0 and #ExplodeModule.listExplodes == 0 then
     enemyModule.playerVictory = true
   end
 end

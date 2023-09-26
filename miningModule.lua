@@ -10,8 +10,8 @@ miningMod.mineH = imgSite:getHeight()
 miningMod.listSites = {}
 local lstSites = miningMod.listSites
 
-local LIMIT_X_BORDER = 125
-local LIMIT_Y_BORDER = 125
+local LIMIT_X_BORDER = 150
+local LIMIT_Y_BORDER = 150
 local DIST_MIN = 150
 
 function miningMod.reset()
@@ -19,13 +19,15 @@ function miningMod.reset()
 end
 
 function miningMod.load(Tank)
-  while #miningMod.listSites < 6 do
+  while #miningMod.listSites < 5 do
     local s = {}
     local validPos = true
+    local W = SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER
+    local H = SettingsMod.screenH
 
     s.stock = 5
-    s.x = math.random(LIMIT_X_BORDER, SettingsMod.screenW - LIMIT_X_BORDER)
-    s.y = math.random(LIMIT_Y_BORDER, SettingsMod.screenH - LIMIT_Y_BORDER)
+    s.x = math.random(LIMIT_X_BORDER, W - LIMIT_X_BORDER)
+    s.y = math.random(LIMIT_Y_BORDER, H - LIMIT_Y_BORDER)
 
     local distPlayer = MathMod.absoluteDistance(s.x, s.y, Tank.x, Tank.y)
     if distPlayer < DIST_MIN then

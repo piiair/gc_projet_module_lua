@@ -2,6 +2,7 @@ local tank = {}
 
 local SettingsMod = require("settings")
 local MathMod = require("utilMath")
+local GoldMod = require("gold")
 local EnemyMod = require("enemyModule")
 local MiningMod = require("miningModule")
 local ExplodeMod = require("explodeModule")
@@ -18,9 +19,9 @@ tank.heightTank = tank.imageTank:getHeight()
 tank.widthBarrel = tank.imageBarrel:getWidth()
 tank.heightBarrel = tank.imageBarrel:getHeight()
 
---Variable 
-tank.isDead = nil
 local MouseX, MouseY
+local SPACE_K__PRESSED
+local canHeal
 
 --Variable
 function tank.reset()
@@ -37,10 +38,13 @@ function tank.reset()
   tank.hpMax = 0
   tank.hp = 0
   tank.timerShot = 0
-  tank.score = 0
+  tank.goldStock = 0
   tank.engineIsOn = false
   tank.gameOver = false
   tank.isDead = false
+
+  SPACE_K__PRESSED = false
+  canHeal = true
 end
 
 local function resetPosIfCollide(pIsCollide, pX, pY)
@@ -54,8 +58,8 @@ local function VerifyCollideWithEntities(pOldPosX, pOldPosY)
   --Collision avec les bords
   if tank.x < 0 + (tank.widthTank / 2) then
     tank.x = 0 + (tank.widthTank / 2)
-  elseif tank.x > SettingsMod.screenW - (tank.widthTank / 2) then
-    tank.x = SettingsMod.screenW - (tank.widthTank / 2)
+  elseif tank.x > SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER - (tank.widthTank / 2) then
+    tank.x = SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER - (tank.widthTank / 2)
   end
 
   if tank.y < 0 + (tank.heightTank / 2) then
@@ -67,21 +71,47 @@ local function VerifyCollideWithEntities(pOldPosX, pOldPosY)
   --Collision avec les autres tank
   for n = 1, #EnemyMod.listEnemies do
     local e = EnemyMod.listEnemies[n]
-    local isCollideWithAnEnemy = MathMod.verifyCollideGeneral(
-      tank.x, tank.y, tank.widthTank, tank.heightTank,
-      e.x, e.y, tank.widthTank, tank.heightTank
-    )
-    resetPosIfCollide(isCollideWithAnEnemy, pOldPosX, pOldPosY)
+    if e.type < 4 then
+      local isCollideWithAnEnemy =
+        MathMod.verifyCollideGeneral(
+        tank.x,
+        tank.y,
+        tank.widthTank,
+        tank.heightTank,
+        e.x,
+        e.y,
+        tank.widthTank,
+        tank.heightTank
+      )
+      resetPosIfCollide(isCollideWithAnEnemy, pOldPosX, pOldPosY)
+    end
   end
-  
+
   --Collision avec les sites de minage
-  for n = 1, #MiningMod.listSites do 
+  for n = 1, #MiningMod.listSites do
     local s = MiningMod.listSites[n]
-    local isCollide = MathMod.verifyCollideGeneral(
-      tank.x, tank.y, tank.widthTank, tank.heightTank,
-      s.x, s.y, MiningMod.mineW, MiningMod.mineH
+    local isCollide =
+      MathMod.verifyCollideGeneral(
+      tank.x,
+      tank.y,
+      tank.widthTank / 2,
+      tank.heightTank / 2,
+      s.x,
+      s.y,
+      MiningMod.mineW,
+      MiningMod.mineH
     )
     resetPosIfCollide(isCollide, pOldPosX, pOldPosY)
+  end
+
+  --Collision avec les pièce d'or
+  for n = 1, #GoldMod.listCoin do
+    local c = GoldMod.listCoin[n]
+    local isCollide = MathMod.verifyCollideGeneral(tank.x, tank.y, tank.widthTank, tank.heightTank, c.x, c.y, c.w, c.h)
+    if isCollide then
+      c.isDeletable = true
+      tank.goldStock = tank.goldStock + 1
+    end
   end
 end
 
@@ -93,6 +123,14 @@ function tank.hurts(pDammage)
       tank.isDead = true
       ExplodeMod.createMultiExplode(tank.x, tank.y, tank.widthTank, tank.heightTank)
     end
+  end
+end
+
+local function Heal()
+  canHeal = false
+  if tank.goldStock > 0 and tank.hp < tank.hpMax then
+    tank.goldStock = tank.goldStock - 1
+    tank.hp = tank.hp + 1
   end
 end
 
@@ -110,9 +148,12 @@ function tank.load()
   tank.hp = tank.hpMax
   tank.timerShot1 = tank.RATES_SHOTS[1]
   tank.timerShot2 = tank.RATES_SHOTS[2]
-  tank.score = 0
+  tank.goldStock = 0
   tank.engineIsOn = false
   tank.gameOver = false
+
+  SPACE_K__PRESSED = false
+  canHeal = true
 
   MouseX, MouseY = love.mouse.getPosition()
   tank.isDead = false
@@ -120,6 +161,17 @@ end
 
 function tank.update(dt)
   if tank.hp > 0 then
+    --upgrades et actions diverses
+    if love.keyboard.isDown("space") then
+      SPACE_K__PRESSED = true
+      if canHeal then
+        Heal()
+      end
+    else
+      SPACE_K__PRESSED = false
+      canHeal = true
+    end
+
     --tirs du tank
     if tank.timerShot1 > 0 then
       tank.timerShot1 = tank.timerShot1 - dt
@@ -128,7 +180,7 @@ function tank.update(dt)
       tank.timerShot2 = tank.timerShot2 - dt
     end
 
-    --rotation du tank + canon
+    --rotation du tank
     if love.keyboard.isDown("q") then
       tank.angleTank = tank.angleTank - (tank.rotationSpeedTank * dt)
       tank.angleBarrel = tank.angleBarrel - (tank.rotationSpeedTank * dt)
@@ -200,12 +252,19 @@ end
 function tank.draw()
   --dessin du tank
   if tank.isDead == false then
-    love.graphics.draw( tank.imageTank, tank.x, tank.y, 
-    math.rad(tank.angleTank), 1, 1, tank.widthTank / 2, tank.heightTank / 2)
+    love.graphics.draw(
+      tank.imageTank,
+      tank.x,
+      tank.y,
+      math.rad(tank.angleTank),
+      1,
+      1,
+      tank.widthTank / 2,
+      tank.heightTank / 2
+    )
 
     --dessin du canon
-    love.graphics.draw(tank.imageBarrel, tank.x, tank.y, 
-    math.rad(tank.angleBarrel), 1, 1, 5, tank.heightBarrel / 2)
+    love.graphics.draw(tank.imageBarrel, tank.x, tank.y, math.rad(tank.angleBarrel), 1, 1, 5, tank.heightBarrel / 2)
   end
 end
 

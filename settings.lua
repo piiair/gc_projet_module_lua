@@ -1,8 +1,9 @@
 local settings = {}
 
 --La fenêtre
-love.window.setMode(1080, 720)
+love.window.setMode(1280, 720)
 --love.window.setTitle("Tank quelque chose")
+settings.MARGIN_GUI_PLAYER = 300
 settings.screenW = love.graphics.getWidth()
 settings.screenH = love.graphics.getHeight()
 

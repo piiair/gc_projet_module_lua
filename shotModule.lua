@@ -146,9 +146,12 @@ function shotModule.update(dt)
         local e = EnemyMod.listEnemies[n]
         local isCollide =
           MathMod.verifyCollideGeneral(s.x, s.y, s.w, s.h, e.x, e.y, EnemyMod.TANK_WIDTH, EnemyMod.TANK_HEIGHT)
-        if isCollide then
+        if isCollide and s.isDeletable == false then
           s.isDeletable = true
           e.hp = e.hp - s.type
+          if e.hp < 0 then
+            e.hp = 0
+          end
           ExplodeMod.createExplode(s.x, s.y, 0.1, "simple")
         end
       end
@@ -179,7 +182,8 @@ function shotModule.update(dt)
     end
 
     --Sors de l'écran
-    local isCollideBorder = MathMod.verifyCollideScreenBorders(s, SettingsMod.screenW, SettingsMod.screenH, "outside")
+    local isCollideBorder = MathMod.verifyCollideScreenBorders(
+      s, SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER, SettingsMod.screenH, "outside")
 
     if isCollideBorder then
       s.isDeletable = true

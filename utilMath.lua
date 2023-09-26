@@ -55,17 +55,17 @@ function utilMath.verifyCollideAxeY(pRefY, pRefH, pObjY, pObjH)
   return isCollide
 end
 
-function utilMath.verifyCollideScreenBorders(pObj, pScreenW, pScreenH, pWhatCollision)
+function utilMath.verifyCollideScreenBorders(pObj, pScreenW, pScreenH, pTypeCollision)
   local isCollide = false
 
-  if pWhatCollision == "inside" then
+  if pTypeCollision == "inside" then
     if pObj.x < 0 + pObj.image:getWidth()/2 or
       pObj.x > pScreenW - pObj.image:getWidth()/2 or
       pObj.y < 0 + pObj.image:getHeight()/2 or
       pObj.y > pScreenH - pObj.image:getHeight()/2 then
         isCollide = true
     end
-  elseif pWhatCollision == "outside" then
+  elseif pTypeCollision == "outside" then
     if pObj.x < 0 - pObj.image:getWidth()/2 or
     pObj.x > pScreenW + pObj.image:getWidth()/2 or
     pObj.y < 0 - pObj.image:getHeight()/2 or
