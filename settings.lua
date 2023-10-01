@@ -9,9 +9,11 @@ settings.screenH = love.graphics.getHeight()
 
 --La souris
 local MouseImage = love.graphics.newImage("images/cursor.png")
-local MouseCursor = love.mouse.newCursor("images/cursor.png", MouseImage:getWidth() / 2, 
-MouseImage:getHeight() / 2)
+local MouseCursor = love.mouse.newCursor("images/cursor.png", MouseImage:getWidth() / 2, MouseImage:getHeight() / 2)
 
 love.mouse.setCursor(MouseCursor)
+
+--Le son
+love.audio.setVolume(0.1)
 
 return settings

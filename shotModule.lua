@@ -3,6 +3,7 @@ local shotModule = {}
 local MathMod = require("utilMath")
 local SettingsMod = require("settings")
 local Tank = require("tank")
+local UpMod = require("upgrade")
 local EnemyMod = require("enemyModule")
 local ExplodeMod = require("explodeModule")
 local MiningMod = require("miningModule")
@@ -13,22 +14,30 @@ shotModule.listShots = nil
 local LIMIT_COUNTER_SINUSOIDE = 0.2
 local CONST_DEVIATION = 25
 
-shotModule.LST_SOUNDS_SHOT = {}
-shotModule.LST_SOUNDS_SHOT[1] = love.audio.newSource("sounds/shot_1.wav", "static")
-shotModule.LST_SOUNDS_SHOT[2] = love.audio.newSource("sounds/shot_2.wav", "static")
+shotModule.LST_IMGS_SHOTS_ALLY = {}
+for n = 1, 3 do
+  shotModule.LST_IMGS_SHOTS_ALLY[n] = love.graphics.newImage("images/myBullet" .. tostring(n) .. ".png")
+end
+
+shotModule.LST_IMGS_SHOTS_ENEMY = {}
+for n = 1, 3 do
+  shotModule.LST_IMGS_SHOTS_ENEMY[n] = love.graphics.newImage("images/enemyBullet" .. tostring(n) .. ".png")
+end
 
 local LST_SHOT_RANGE = {}
-LST_SHOT_RANGE[1] = 300
-LST_SHOT_RANGE[2] = 450
+LST_SHOT_RANGE[1] = 275
+LST_SHOT_RANGE[2] = 400
+LST_SHOT_RANGE[3] = 500
 
 local LST_BUL_SPD_PLAYER = {}
 LST_BUL_SPD_PLAYER[1] = 600
 LST_BUL_SPD_PLAYER[2] = 400
+LST_BUL_SPD_PLAYER[3] = 400
 
 local LST_BUL_SPEED_ENEMY = {}
-LST_BUL_SPEED_ENEMY[1] = 800
-LST_BUL_SPEED_ENEMY[2] = 700
-LST_BUL_SPEED_ENEMY[3] = 600
+LST_BUL_SPEED_ENEMY[1] = 750
+LST_BUL_SPEED_ENEMY[2] = 650
+LST_BUL_SPEED_ENEMY[3] = 550
 
 function shotModule.load()
   shotModule.listShots = {}
@@ -44,11 +53,15 @@ function Shoot(pXShooter, pYShooter, pAngle, pSpeed, pType, pTeam)
   s.team = pTeam
   s.isDeletable = false
   s.isExplode = false
+  s.soundShot = love.audio.newSource("sounds/shot_" .. tostring(pType) .. ".wav", "static")
+  s.soundExplode = love.audio.newSource("sounds/explodeShot.wav", "static")
 
   if s.team == "ally" then
-    s.image = love.graphics.newImage("images/myBullet" .. tostring(s.type) .. ".png")
+    s.image = shotModule.LST_IMGS_SHOTS_ALLY[s.type]
+    local bonusSpd = UpMod.listBul[pType][2].bonus
+    s.speed = pSpeed + bonusSpd
   elseif s.team == "enemy" then
-    s.image = love.graphics.newImage("images/enemyBullet" .. tostring(s.type) .. ".png")
+    s.image = shotModule.LST_IMGS_SHOTS_ENEMY[s.type]
   end
 
   s.w = s.image:getWidth()
@@ -69,22 +82,22 @@ function Shoot(pXShooter, pYShooter, pAngle, pSpeed, pType, pTeam)
     s.explodeType = "simple"
     s.distTraveled = 0
   end
-
+  s.soundShot:play()
   table.insert(shotModule.listShots, s)
 end
 
 function shotModule.update(dt)
   --tirs du joueur
-  if love.mouse.isDown(1) and Tank.timerShot1 <= 0 then
-    --love.audio.stop(ShotMod.LST_SOUNDS_SHOT[1])
-    --love.audio.play(ShotMod.LST_SOUNDS_SHOT[1])
-    Tank.timerShot1 = Tank.RATES_SHOTS[1]
-    Shoot(Tank.x, Tank.y, Tank.angleBarrel, LST_BUL_SPD_PLAYER[1], 1, "ally")
-  elseif love.mouse.isDown(2) and Tank.timerShot2 <= 0 then
-    Tank.timerShot2 = Tank.RATES_SHOTS[2]
-    --love.audio.stop(ShotMod.LST_SOUNDS_SHOT[2])
-    --love.audio.play(ShotMod.LST_SOUNDS_SHOT[2])
-    Shoot(Tank.x, Tank.y, Tank.angleBarrel, LST_BUL_SPD_PLAYER[2], 2, "ally")
+  local mouseX, mouseY = love.mouse.getPosition()
+  --On controle le x de la souris par rapport au panneau d'upgrades
+  if mouseX <= SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER then
+    local idWeapon = Tank.currentWeapon
+    if love.mouse.isDown(1) then
+      if Tank.timersShots[idWeapon] <= 0 then
+        Tank.timersShots[idWeapon] = Tank.RATES_SHOTS[idWeapon]
+        Shoot(Tank.x, Tank.y, Tank.angleBarrel, LST_BUL_SPD_PLAYER[idWeapon], idWeapon, "ally")
+      end
+    end
   end
 
   --tirs des ennemis
@@ -103,19 +116,24 @@ function shotModule.update(dt)
     local s = shotModule.listShots[n]
 
     if s.type == 3 then
-      --On dévie le tir dans un sens ou dans l'autre (sinusoïdale)
-      if s.deviateUp then
-        s.angle = s.angle + dt * CONST_DEVIATION
-        s.deviateCounter = s.deviateCounter + dt
-      else
-        s.angle = s.angle - dt * CONST_DEVIATION
-        s.deviateCounter = s.deviateCounter - dt
-      end
+      --Les missiles ennemis serpentent
+      if s.team == "enemy" then
+        --On dévie le tir dans un sens ou dans l'autre (sinusoïdale)
+        if s.deviateUp then
+          s.angle = s.angle + dt * CONST_DEVIATION
+          s.deviateCounter = s.deviateCounter + dt
+        else
+          s.angle = s.angle - dt * CONST_DEVIATION
+          s.deviateCounter = s.deviateCounter - dt
+        end
 
-      if s.deviateCounter >= LIMIT_COUNTER_SINUSOIDE then
-        s.deviateUp = false
-      elseif s.deviateCounter <= -LIMIT_COUNTER_SINUSOIDE then
-        s.deviateUp = true
+        if s.deviateCounter >= LIMIT_COUNTER_SINUSOIDE then
+          s.deviateUp = false
+        elseif s.deviateCounter <= -LIMIT_COUNTER_SINUSOIDE then
+          s.deviateUp = true
+        end
+      --elseif s.team == "ally" then
+      --Les missiles alliés poursuivent une cible
       end
     end
 
@@ -131,7 +149,7 @@ function shotModule.update(dt)
     --Collision des tirs avec les ennemis ou le joueur
     if s.team == "enemy" then
       local isCollide =
-        MathMod.verifyCollideGeneral(s.x, s.y, s.w, s.h, Tank.x, Tank.y, Tank.widthTank, Tank.heightTank)
+        MathMod.verifyCollideGeneral(s.x, s.y, s.w / 2, s.h / 2, Tank.x, Tank.y, Tank.widthTank, Tank.heightTank)
       if isCollide then
         s.isDeletable = true
         Tank.hurts(s.type)
@@ -145,10 +163,11 @@ function shotModule.update(dt)
       for n = 1, #EnemyMod.listEnemies do
         local e = EnemyMod.listEnemies[n]
         local isCollide =
-          MathMod.verifyCollideGeneral(s.x, s.y, s.w, s.h, e.x, e.y, EnemyMod.TANK_WIDTH, EnemyMod.TANK_HEIGHT)
+          MathMod.verifyCollideGeneral(s.x, s.y, s.w / 2, s.h / 2, e.x, e.y, EnemyMod.TANK_WIDTH, EnemyMod.TANK_HEIGHT)
         if isCollide and s.isDeletable == false then
           s.isDeletable = true
-          e.hp = e.hp - s.type
+          local bonusDamage = UpMod.listBul[s.type][1].bonus
+          e.hp = e.hp - s.type - bonusDamage
           if e.hp < 0 then
             e.hp = 0
           end
@@ -158,13 +177,11 @@ function shotModule.update(dt)
     end
 
     --Collision avec les sites de minage
-    for n = 1, #MiningMod.listSites do 
+    for n = 1, #MiningMod.listSites do
       local site = MiningMod.listSites[n]
-      isCollide = MathMod.verifyCollideGeneral(
-        s.x, s.y, s.w, s.h,
-        site.x, site.y, MiningMod.mineW, MiningMod.mineH
-      )
-  
+      isCollide =
+        MathMod.verifyCollideGeneral(s.x, s.y, s.w / 2, s.h / 2, site.x, site.y, MiningMod.mineW, MiningMod.mineH)
+
       if isCollide then
         s.isDeletable = true
         s.isExplode = true
@@ -175,15 +192,21 @@ function shotModule.update(dt)
     --distance parcourue des tirs
     if s.type == 1 or s.type == 2 then
       s.distTraveled = s.distTraveled + (MathMod.absoluteDistance(oldX, oldY, s.x, s.y))
-      if s.distTraveled >= LST_SHOT_RANGE[s.type] then
+      local bonusRange = UpMod.listBul[s.type][4].bonus
+      if s.distTraveled >= LST_SHOT_RANGE[s.type] + bonusRange then
         s.isDeletable = true
         s.isExplode = true
       end
     end
 
     --Sors de l'écran
-    local isCollideBorder = MathMod.verifyCollideScreenBorders(
-      s, SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER, SettingsMod.screenH, "outside")
+    local isCollideBorder =
+      MathMod.verifyCollideScreenBorders(
+      s,
+      SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER,
+      SettingsMod.screenH,
+      "outside"
+    )
 
     if isCollideBorder then
       s.isDeletable = true
@@ -198,7 +221,12 @@ function shotModule.update(dt)
       if s.isExplode then
         local timer = math.random(5, 20) / 100
         ExplodeMod.createExplode(s.x, s.y, timer, s.explodeType)
+        s.soundExplode:play()
       end
+      if s.type == 3 then
+        s.soundShot:stop()
+      end
+      
       table.remove(shotModule.listShots, n)
     end
   end

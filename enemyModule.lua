@@ -22,6 +22,8 @@ enemyModule.TANK_WIDTH = LIST_IMG_TANKS[1]:getWidth()
 enemyModule.TANK_HEIGHT = LIST_IMG_TANKS[1]:getHeight()
 enemyModule.BARREL_WIDTH = LIST_IMG_BARREL[1]:getWidth()
 
+local sndExplodeTank = love.audio.newSource("sounds/explodeTank.wav", "static")
+
 local LIST_SPD_ENEMIES = {}
 LIST_SPD_ENEMIES[1] = 100
 LIST_SPD_ENEMIES[2] = 125
@@ -69,13 +71,15 @@ LIST_MAGAZINE[3] = 3
 enemyModule.ENEMIES_PER_LEVEL = {}
 enemyModule.ENEMIES_PER_LEVEL[1] = 10
 
-local SPD_ROTA_TANK = 75
-local SPD_ROTA_BARREL = 95
-local TIMER_MOVE = 1
+local SPD_ROTA_TANK = 100
+local SPD_ROTA_BARREL = 125
+local TIMER_MOVE = 0.5
 local TIMER_RADAR = 0.25
-local TIMER_EXTRACT = 5
-local TIMER_RUNDOWN = 4
+local TIMER_EXTRACT = 1.25
+local TIMER_RUNDOWN = 1
 local BASE_HP = 2
+
+enemyModule.FULL_STOCK_ENERGY = 4
 
 --Spawn
 local TIMER_SPAWN_TANK_REF = 5
@@ -254,6 +258,7 @@ local function CreateEnemy(pType)
     e.isEmpty = true
     e.timerExtract = TIMER_EXTRACT
     e.timerRunDown = TIMER_RUNDOWN
+    e.stockEnergy = 0
     e.isTaskFinished = false
   end
 
@@ -385,9 +390,9 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
       e.x = CalculNewPosByAxe(e.x, e.angleBody, LIST_SPD_ENEMIES[e.type] , "cos", dt)
       e.y = CalculNewPosByAxe(e.y, e.angleBody, LIST_SPD_ENEMIES[e.type] , "sin", dt)
 
-      VerifyCollideWidthEntities(e.x, e.y, pIndex)
+      local isCollide = VerifyCollideWidthEntities(e.x, e.y, pIndex)
 
-      if isOutOfMap or isCollideWithOtherEnemy then
+      if isCollide then
         e.x = oldPosX
         e.y = oldPosY
         e.state = STATE_NULL
@@ -613,14 +618,24 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
       end
     elseif e.state == STATE_MINE then
       e.timerExtract = e.timerExtract - dt
-      if e.timerExtract <= 0 then
+      if e.timerExtract <= 0 and e.stockEnergy < enemyModule.FULL_STOCK_ENERGY then
+        e.timerExtract = TIMER_EXTRACT
+        e.stockEnergy = e.stockEnergy + 1
+      end
+
+      --Une fois plein on change de mode
+      if e.stockEnergy == enemyModule.FULL_STOCK_ENERGY then
         e.isEmpty = false
         e.state = STATE_TARGET
       end
     elseif e.state == STATE_RUNDOWN then
       e.timerRunDown = e.timerRunDown - dt 
-      if e.timerRunDown <= 0 then
-        e.timerRunDown = 0
+      if e.timerRunDown <= 0 and e.stockEnergy > 0 then
+        e.timerRunDown = TIMER_RUNDOWN
+        e.stockEnergy = e.stockEnergy - 1
+      end
+
+      if e.stockEnergy == 0 then
         e.isTaskFinished = true
       end
     end
@@ -657,6 +672,8 @@ function enemyModule.update(dt, pPlayer)
       enemyModule.scorePlayer = enemyModule.scorePlayer + 1
       GoldMod.genereGold(e)
       ExplodeModule.createMultiExplode(e.x, e.y, enemyModule.TANK_WIDTH, enemyModule.TANK_HEIGHT)
+      sndExplodeTank:stop()
+      sndExplodeTank:play()
       DeleteEnemy(n, e.id)
     end
 

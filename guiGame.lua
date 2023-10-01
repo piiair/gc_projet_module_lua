@@ -2,20 +2,31 @@ local GuiGame = {}
 
 local GCGUI = require("GCGUI")
 local SettingsMod = require("settings")
+local UpMod = require("upgrade")
 local GoldMod = require("gold")
 local Tank = require("tank")
 local EnemyMod = require("enemyModule")
+local ShotMod = require("shotModule")
 
 local imageButton = {}
 imageButton.image = love.graphics.newImage("images/button.png")
 imageButton.w = imageButton.image:getWidth()
 imageButton.h = imageButton.image:getHeight()
 
+local imageBtnCharDefault = love.graphics.newImage("images/buttonCharD.png")
+local imageBtnCharHover = love.graphics.newImage("images/buttonCharH.png")
+local imageBtnCharPressed = love.graphics.newImage("images/buttonCharP.png")
+
+local LIST_IMGS_UPGRADES = {}
+for n = 1, 4 do
+  LIST_IMGS_UPGRADES[n] = love.graphics.newImage("images/upgrade" .. tostring(n) .. ".png")
+end
+
 local W = SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER
 local H = SettingsMod.screenH
 
 local PROG_BAR_SIZE = 6
-local BAR_HP_COLOR_OUT = {
+local BAR_COLOR_OUT = {
   [1] = 65 / 255,
   [2] = 61 / 255,
   [3] = 61 / 255
@@ -26,9 +37,16 @@ local BAR_HP_COLOR_IN = {
   [3] = 27 / 255
 }
 
+local BAR_ENERGY_COLOR_IN = {
+  [1] = 233 / 255,
+  [2] = 233 / 255,
+  [3] = 64 / 255
+}
+
 function GuiGame.resetGui()
   GuiGame.menuGroup = nil
   GuiGame.gameGroup = nil
+  GuiGame.breakGroup = nil
   GuiGame.victoryGroup = nil
   GuiGame.gameOverGroup = nil
 end
@@ -37,10 +55,42 @@ end
 function GuiGame.loadMenuGroup()
   GuiGame.menuGroup = GCGUI.newGroup()
   local menuButtonPlay =
-    GCGUI.newButton(SettingsMod.screenW / 2 - imageButton.w / 2, 250, imageButton.w, imageButton.h, "Play", GCGUI.font)
+    GCGUI.newButton(
+      SettingsMod.screenW / 2 - imageButton.w / 2, 
+      125, 
+      imageButton.w, 
+      imageButton.h, 
+      "Play", 
+      GCGUI.font
+  )
   menuButtonPlay:setImage(imageButton.image)
 
+  local missionText = "Soldier ! Your mission is to destroy all enemies units before they got you!"
+  local textMission = GCGUI.newText(0, 200, SettingsMod.screenW, 50, missionText, GCGUI.font, "center", "center")
+
+  local controlsText = "[Z] to move, [Q] / [D] to rotate"
+  local textcontrols = GCGUI.newText(0, 300, SettingsMod.screenW, 50, controlsText, GCGUI.fontMedium, "center", "center")
+
+  local utilsText = "[S] to swap weapon, [SPACE] to repair"
+  local textUtils = GCGUI.newText(0, 350, SettingsMod.screenW, 50, utilsText, GCGUI.fontMedium, "center", "center")
+
+  local shootText = "[LEFT CLICK] to shoot with current weapon"
+  local textShoot = GCGUI.newText(0, 400, SettingsMod.screenW, 50, shootText, GCGUI.fontMedium, "center", "center")
+
+  local healText = "[SPACE] to heal"
+  local textHeal = GCGUI.newText(0, 450, SettingsMod.screenW, 50, healText, GCGUI.fontMedium, "center", "center")
+
+  local glText = "Good luck soldier !"
+  local textGl = GCGUI.newText(0, 550, SettingsMod.screenW, 50, glText, GCGUI.font, "center", "center")
+
   GuiGame.menuGroup:addElement(menuButtonPlay)
+  GuiGame.menuGroup:addElement(textMission)
+  GuiGame.menuGroup:addElement(textcontrols)
+  GuiGame.menuGroup:addElement(textUtils)
+  GuiGame.menuGroup:addElement(textShoot)
+  GuiGame.menuGroup:addElement(textHeal)
+  GuiGame.menuGroup:addElement(textGl)
+
 end
 
 function GuiGame.updateMenuGroup(dt)
@@ -52,7 +102,7 @@ function GuiGame.loadGameGroup()
   GuiGame.gameGroup = GCGUI.newGroup()
 
   local gameHpBarPlayer =
-    GCGUI.newProgressBar(0, 0, Tank.widthTank, PROG_BAR_SIZE, Tank.hpMax, BAR_HP_COLOR_OUT, BAR_HP_COLOR_IN)
+    GCGUI.newProgressBar(0, 0, Tank.widthTank, PROG_BAR_SIZE, Tank.hpMax, BAR_COLOR_OUT, BAR_HP_COLOR_IN)
   gameHpBarPlayer:setValue(Tank.hp)
 
   --Gui du joueur avec les infos InGame utiles et les boutons d'upgrade
@@ -60,67 +110,155 @@ function GuiGame.loadGameGroup()
   local panelBG = GCGUI.newPanel(W, 0, SettingsMod.MARGIN_GUI_PLAYER, H, {50 / 255, 40 / 255, 10 / 255})
   local margL = 5
 
+  --Infos sur les enemis
   local text = "Enemies remaining: " .. tostring(EnemyMod.enemiesStock)
-  local textEnemiesRemaining = GCGUI.newText(
-    W + margL, 0, SettingsMod.MARGIN_GUI_PLAYER, 30, 
-    text, GCGUI.font, "", "center"
-  )
+  local textEnemiesRemaining =
+    GCGUI.newText(W + margL, 0, SettingsMod.MARGIN_GUI_PLAYER, 30, text, GCGUI.font, "", "center")
 
-  local scoreText = "Enemies killed: "..tostring(EnemyMod.scorePlayer)
-  local scorePanel = GCGUI.newText(
-    W + margL, 40, SettingsMod.MARGIN_GUI_PLAYER, 30, 
-    scoreText, GCGUI.font, "", "center"
-  )
+  local scoreText = "Enemies killed: " .. tostring(EnemyMod.scorePlayer)
+  local scorePanel =
+    GCGUI.newText(W + margL, 40, SettingsMod.MARGIN_GUI_PLAYER, 30, scoreText, GCGUI.font, "", "center")
 
-  local goldText = "Golds: "..tostring(Tank.goldStock)
-  local goldPanel = GCGUI.newText(
-    W + margL, 80, SettingsMod.MARGIN_GUI_PLAYER, 30, 
-    goldText, GCGUI.font, "", "center"
-  )
+  --Infos sur les golds et upgrades
+  local refY = 110
+  local margY = 40
+
+  local goldText = "Golds: " .. tostring(Tank.goldStock)
+  local goldPanel =
+    GCGUI.newText(W + margL, refY, SettingsMod.MARGIN_GUI_PLAYER, 30, goldText, GCGUI.font, "", "center")
+
+  local priceText = "Cost = lvl x 1Gold"
+  local pricePanel =
+    GCGUI.newText(W + margL, refY + margY, SettingsMod.MARGIN_GUI_PLAYER, 30, priceText, GCGUI.font, "", "center")
 
   guiPlayer:addElement(panelBG)
   guiPlayer:addElement(textEnemiesRemaining)
   guiPlayer:addElement(scorePanel)
   guiPlayer:addElement(goldPanel)
+  guiPlayer:addElement(pricePanel)
+
+  --partie upgrades
+  --les images des projectiles
+  local widthPerImage = (SettingsMod.MARGIN_GUI_PLAYER - 6 * margL) / 3
+  for n = 1, 3 do
+    local image = ShotMod.LST_IMGS_SHOTS_ALLY[n]
+    local w = image:getWidth()
+    local h = image:getHeight()
+    local x = W + margL * 6 + (widthPerImage * (n - 1)) + ((widthPerImage - w) / 2)
+    local y = refY + (2 * margY) + ((margY - h) / 2)
+    local panelBullet = GCGUI.newPanel(x, y, w, h)
+    panelBullet:setImage(image)
+    guiPlayer:addElement(panelBullet)
+  end
+
+  --Les images des upgrades
+  for n = 1, 4 do
+    local image = LIST_IMGS_UPGRADES[n]
+    local w = image:getWidth()
+    local h = image:getHeight()
+    local x = W + margL / 2
+    local y = refY + (3 * margY) + (60 * (n - 1)) + ((60 - h) / 2)
+    local panelUpgrade = GCGUI.newPanel(x, y, w, h)
+    panelUpgrade:setImage(image)
+    guiPlayer:addElement(panelUpgrade)
+  end
+
+  --Les charactéristiques des bullets
+  for n = 1, 3 do
+    local bul = UpMod.listBul[n]
+    for N = 1, #bul do
+      local char = bul[N]
+      local signBonus
+      if N < 4 then
+        signBonus = "+"
+      else
+        signBonus = "-"
+      end
+      local textChar = tostring(char.lvl) .. "/" .. signBonus .. tostring(char.bonus)
+      local size = 48
+      local x = W + margL * 6 + (widthPerImage * (n - 1)) + size / 2
+      local y = refY + (2 * margY) + (60 * (N - 1)) + size
+      local btnChar = GCGUI.newButton(x, y, size, size, textChar, GCGUI.fontLitte)
+      btnChar:setImages(imageBtnCharDefault, imageBtnCharHover, imageBtnCharPressed)
+      btnChar.idBul = n
+      btnChar.idChar = N
+      guiPlayer:addElement(btnChar)
+    end
+  end
+
+  --Le heal
+  local healText = "[SPACE] to repair : 1G = 1HP"
+  local panelHeal = GCGUI.newText(W + margL, 475, SettingsMod.MARGIN_GUI_PLAYER, 30, healText, GCGUI.font, "", "center")
+  guiPlayer:addElement(panelHeal)
 
   GuiGame.gameGroup:addElement(gameHpBarPlayer)
   GuiGame.gameGroup:addElement(guiPlayer)
   GuiGame.gameGroup.hpBarsGroup = GCGUI.newGroup()
+  GuiGame.gameGroup.energyBarsGroup = GCGUI.newGroup()
 end
 
-local function AddHpBarEnemy(pEnemy)
+local function AddBarEnemy(pEnemy, pTypeBar)
   local e = pEnemy
-  local bar =
-    GCGUI.newProgressBar(
-    e.x - EnemyMod.TANK_WIDTH / 2,
-    e.y - EnemyMod.TANK_HEIGHT / 2,
-    EnemyMod.TANK_WIDTH,
-    PROG_BAR_SIZE,
-    e.hpMax,
-    BAR_HP_COLOR_OUT,
-    BAR_HP_COLOR_IN
-  )
-  bar.id = e.id
-  GuiGame.gameGroup.hpBarsGroup:addElement(bar)
+  local bar
+  if pTypeBar == "hp" then
+    bar =
+      GCGUI.newProgressBar(
+      e.x - EnemyMod.TANK_WIDTH / 2,
+      e.y - EnemyMod.TANK_HEIGHT / 2,
+      EnemyMod.TANK_WIDTH,
+      PROG_BAR_SIZE,
+      e.hpMax,
+      BAR_COLOR_OUT,
+      BAR_HP_COLOR_IN
+    )
+    bar.id = e.id
+    GuiGame.gameGroup.hpBarsGroup:addElement(bar)
+  elseif pTypeBar == "energy" then
+    bar =
+      GCGUI.newProgressBar(
+      e.x - EnemyMod.TANK_WIDTH / 2,
+      e.y - EnemyMod.TANK_HEIGHT / 1.25,
+      EnemyMod.TANK_WIDTH,
+      PROG_BAR_SIZE,
+      EnemyMod.FULL_STOCK_ENERGY,
+      BAR_COLOR_OUT,
+      BAR_ENERGY_COLOR_IN
+    )
+    bar:setValue(e.stockEnergy)
+    bar.id = e.id
+    GuiGame.gameGroup.energyBarsGroup:addElement(bar)
+  end
 end
 
 function GuiGame.updateGameGroup(dt)
-  --GuiGame.gameGroup:update(dt)
+  GuiGame.gameGroup:update(dt)
 
   --La barre hp du joueur
   GuiGame.gameGroup.elements[1]:setValue(Tank.hp)
   GuiGame.gameGroup.elements[1].setPosition(Tank.x - Tank.widthTank / 2, Tank.y - Tank.heightTank - 10)
 
-  --Les barres hp des ennemis
-  local groupBar = GuiGame.gameGroup.hpBarsGroup
+  --Les barres hp/energy des ennemis
+  local groupBarHp = GuiGame.gameGroup.hpBarsGroup
+  local groupBarEnergy = GuiGame.gameGroup.energyBarsGroup
 
   --Suppression des barres obsolètes
   for n = #EnemyMod.listDeadIds, 1, -1 do
     local id = EnemyMod.listDeadIds[n]
-    for o = #groupBar.elements, 1, -1 do
-      local bar = groupBar.elements[o]
+
+    --Barres hp
+    for o = #groupBarHp.elements, 1, -1 do
+      local bar = groupBarHp.elements[o]
       if bar.id == id then
-        table.remove(groupBar.elements, o)
+        table.remove(groupBarHp.elements, o)
+      end
+    end
+
+    --Barres energy
+    for o = #groupBarEnergy.elements, 1, -1 do
+      local bar = groupBarEnergy.elements[o]
+      if bar.id == id then
+        table.remove(groupBarEnergy.elements, o)
+        --On supprime l'id quand toutes les barres sont supprimées
         table.remove(EnemyMod.listDeadIds, n)
       end
     end
@@ -128,30 +266,60 @@ function GuiGame.updateGameGroup(dt)
 
   --Ajout des barres des nouveaux ennemis
   for n = 1, #EnemyMod.listEnemies do
-    --création d'une barre
+    --création des barres hp/energy
     local e = EnemyMod.listEnemies[n]
-    local hasABar = false
-    --On vérifie si l'ennemi a déjà une barre 
-    for o = 1, #groupBar.elements do
-      local bar = groupBar.elements[o]
+    local hasABarHp = false
+    local hasABarEnergy = false
+
+    --On vérifie si l'ennemi a déjà une barre
+    for o = 1, #groupBarHp.elements do
+      local bar = groupBarHp.elements[o]
       if e.id == bar.id then
-        hasABar = true
+        hasABarHp = true
+        break
       end
-    end  
+    end
+
     --On en crée une dans le cas contraire
-    if hasABar == false then
-      AddHpBarEnemy(e)
+    if hasABarHp == false then
+      AddBarEnemy(e, "hp")
+    end
+
+    --Idem pour l'energy des drones
+    if e.type == 4 then
+      for o = 1, #groupBarEnergy.elements do
+        local bar = groupBarEnergy.elements[o]
+        if e.id == bar.id then
+          hasABarEnergy = true
+          break
+        end
+      end
+
+      if hasABarEnergy == false then
+        AddBarEnemy(e, "energy")
+      end
     end
   end
 
   --update des barres
-  for n = 1, #groupBar.elements do 
-    local bar = groupBar.elements[n]
+  for n = 1, #groupBarHp.elements do
+    local bar = groupBarHp.elements[n]
     for i = 1, #EnemyMod.listEnemies do
       local e = EnemyMod.listEnemies[i]
       if e.id == bar.id then
         bar:setValue(e.hp)
         bar.setPosition(e.x - e.w / 2, e.y - e.h / 2 - 10)
+      end
+    end
+  end
+
+  for n = 1, #groupBarEnergy.elements do
+    local bar = groupBarEnergy.elements[n]
+    for i = 1, #EnemyMod.listEnemies do
+      local e = EnemyMod.listEnemies[i]
+      if e.id == bar.id then
+        bar:setValue(e.stockEnergy)
+        bar.setPosition(e.x - e.w / 2, e.y - e.h / 1.25 - 10)
       end
     end
   end
@@ -162,17 +330,58 @@ function GuiGame.updateGameGroup(dt)
   GuiGame.gameGroup.elements[2].elements[2]:updateText(textEnemies)
 
   --Le score du joueur
-  local scoreText = "Enemies killed: "..tostring(EnemyMod.scorePlayer)
+  local scoreText = "Enemies killed: " .. tostring(EnemyMod.scorePlayer)
   GuiGame.gameGroup.elements[2].elements[3]:updateText(scoreText)
 
   --Les golds du joueur
-  local goldText = "Golds: "..tostring(Tank.goldStock)
+  local goldText = "Golds: " .. tostring(Tank.goldStock)
   GuiGame.gameGroup.elements[2].elements[4]:updateText(goldText)
 
+  --Les charactéristiques des bullets
+  for n = 13, #GuiGame.gameGroup.elements[2].elements do
+    local btnChar = GuiGame.gameGroup.elements[2].elements[n]
+    if btnChar.isPressed then
+      UpMod.upgradeChar(btnChar.idBul, btnChar.idChar)
+      if btnChar.idChar < 4 then
+        signBonus = "+"
+      else
+        signBonus = "-"
+      end
+      local char = UpMod.listBul[btnChar.idBul][btnChar.idChar]
+      local textChar = tostring(char.lvl) .. "/" .. signBonus .. tostring(char.bonus)
+      GuiGame.gameGroup.elements[2].elements[n]:updateLabel(textChar)
+    end
+  end
 end
 
-function GuiGame.drawHpBars()
+function GuiGame.drawBarsGameGroup()
   GuiGame.gameGroup.hpBarsGroup:draw()
+  GuiGame.gameGroup.energyBarsGroup:draw()
+end
+
+--Fonctions du breakGroup
+function GuiGame.loadBreakGroup()
+  GuiGame.breakGroup = GCGUI.newGroup()
+  local W = SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER
+
+  local breakButtonRestart =
+    GCGUI.newButton(W / 3 - imageButton.w / 2, 250, imageButton.w, imageButton.h, "New Game", GCGUI.font)
+  breakButtonRestart:setImage(imageButton.image)
+
+  local breakButtonMenu =
+    GCGUI.newButton(W - W / 3 - imageButton.w / 2, 250, imageButton.w, imageButton.h, "Menu", GCGUI.font)
+  breakButtonMenu:setImage(imageButton.image)
+
+  local text = "Pause"
+  local pauseText = GCGUI.newText(0, 0, W, 300, text, GCGUI.font, "center", "center")
+
+  GuiGame.breakGroup:addElement(breakButtonRestart)
+  GuiGame.breakGroup:addElement(breakButtonMenu)
+  GuiGame.breakGroup:addElement(pauseText)
+end
+
+function GuiGame.updateBreakGroup(dt)
+  GuiGame.breakGroup:update(dt)
 end
 
 --Fonctions du victoryGroup
@@ -219,7 +428,7 @@ function GuiGame.loadGameOverGroup()
 
   local gameOverButtonRestart =
     GCGUI.newButton(
-    SettingsMod.screenW / 3 - imageButton.w / 2,
+    SettingsMod.screenW - SettingsMod.screenW / 3 - imageButton.w / 2,
     250,
     imageButton.w,
     imageButton.h,
@@ -229,14 +438,7 @@ function GuiGame.loadGameOverGroup()
   gameOverButtonRestart:setImage(imageButton.image)
 
   local gameOverButtonMenu =
-    GCGUI.newButton(
-    SettingsMod.screenW - SettingsMod.screenW / 3 - imageButton.w / 2,
-    250,
-    imageButton.w,
-    imageButton.h,
-    "Menu",
-    GCGUI.font
-  )
+    GCGUI.newButton(SettingsMod.screenW / 3 - imageButton.w / 2, 250, imageButton.w, imageButton.h, "Menu", GCGUI.font)
   gameOverButtonMenu:setImage(imageButton.image)
 
   local enemyOrEnemies

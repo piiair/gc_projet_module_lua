@@ -6,11 +6,13 @@ local DepositMod = require("deposit")
 local ExplodeModule = require("explodeModule")
 local MiningModule = require("miningModule")
 local Tank = require("tank")
+local UpMod = require("upgrade")
 local EnemyModule = require("enemyModule")
 local ShotModule = require("shotModule")
 local GuiGame = require("guiGame")
 
 local GameMode
+local sndSources
 
 local function resetModules()
   GuiGame.resetGui()
@@ -19,6 +21,7 @@ local function resetModules()
   ShotModule.listShots = nil
   ExplodeModule.listExplodes = nil
   GoldMod.listCoin = nil
+  UpMod.listBul = nil
 end
 
 local function startNewGame()
@@ -28,7 +31,16 @@ local function startNewGame()
   MiningModule.load(Tank)
   ExplodeModule.load()
   GoldMod.load()
+  UpMod.load()
   GuiGame.loadGameGroup()
+end
+
+local function manageSounds(Action)
+  if Action == "pause" then
+    sndSources = love.audio.pause()
+  elseif Action == "resume" then
+    love.audio.play(sndSources)
+  end
 end
 
 function game.init()
@@ -46,8 +58,6 @@ function game.update(dt)
       startNewGame()
     end
   elseif GameMode == "game" then
-    --elseif GameMode == "break" then
-    --changement si Pause
     --Game
     ExplodeModule.update(dt)
     Tank.update(dt)
@@ -65,6 +75,18 @@ function game.update(dt)
       GameMode = "victory"
       GuiGame.loadVictoryGroup()
     end
+  elseif GameMode == "break" then
+    GuiGame.updateBreakGroup(dt)
+    if GuiGame.breakGroup.elements[1].isPressed then
+      resetModules()
+      GameMode = "game"
+      startNewGame()
+    elseif GuiGame.breakGroup.elements[2].isPressed then
+      resetModules()
+      GameMode = "menu"
+      GuiGame.loadMenuGroup()
+    end
+    
   elseif GameMode == "victory" then
     GuiGame.updateVictoryGroup(dt)
 
@@ -96,7 +118,6 @@ function game.draw()
   if GameMode == "menu" then
     GuiGame.menuGroup:draw()
   elseif GameMode == "game" then
-    --elseif GameMode == "break" then
     ShotModule.draw()
     MiningModule.draw()
     DepositMod.draw()
@@ -105,7 +126,20 @@ function game.draw()
     EnemyModule.draw()
     ExplodeModule.draw()
     GuiGame.gameGroup:draw()
-    GuiGame.gameGroup.hpBarsGroup:draw()
+    GuiGame.drawBarsGameGroup()
+  elseif GameMode == "break" then
+    love.graphics.setColor(0.5, 0.5, 0.5, 1)
+    ShotModule.draw()
+    MiningModule.draw()
+    DepositMod.draw()
+    GoldMod.draw()
+    Tank.draw()
+    EnemyModule.draw()
+    ExplodeModule.draw()
+    GuiGame.gameGroup:draw()
+    GuiGame.drawBarsGameGroup()
+    love.graphics.setColor(1, 1, 1)
+    GuiGame.breakGroup.draw()
   elseif GameMode == "victory" then
     love.graphics.setColor(0.5, 0.5, 0.5, 1)
     ShotModule.draw()
@@ -133,10 +167,17 @@ function love.keypressed(key)
     if GameMode == "menu" then
       love.event.quit()
     elseif GameMode == "game" then
-      resetModules()
-      GameMode = "menu"
-      GuiGame.loadMenuGroup()
+      GameMode = "break"
+      GuiGame.loadBreakGroup()
+      manageSounds("pause")
+    elseif GameMode == "break" then
+      GameMode = "game"
+      manageSounds("resume")
     end
+  end
+
+  if GameMode == "game" then 
+    Tank.keypressed(key)
   end
 end
 

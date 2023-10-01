@@ -1,6 +1,8 @@
 local GCGUI = {}
 
 GCGUI.font = love.graphics.newFont("images/JosefinSans-Bold.ttf", 22)
+GCGUI.fontMedium = love.graphics.newFont("images/JosefinSans-Bold.ttf", 18)
+GCGUI.fontLitte = love.graphics.newFont("images/JosefinSans-Bold.ttf", 12)
 --créer un ouvel élément
 local function newElement(pX, pY)
   local myElement = {}
@@ -150,6 +152,8 @@ function GCGUI.newText(pX, pY, pW, pH, pText, pFont, pHAlign, pVAlign)
   
   function myText:updateText(pNewText)
     self.text = pNewText
+    self.textW = pFont:getWidth(pNewText)
+    self.textH = pFont:getHeight(pNewText)
   end
   
   function myText:draw()
@@ -181,6 +185,7 @@ function GCGUI.newButton(pX, pY, pW, pH, pText, pFont, pColor)
   myButton.label = GCGUI.newText(pX, pY, pW, pH, pText, pFont, "center", "center")
   
   myButton.isPressed = false
+  myButton.isLocked = false
   myButton.oldButtonState = false
   
   myButton.imgDefault = nil 
@@ -195,21 +200,33 @@ function GCGUI.newButton(pX, pY, pW, pH, pText, pFont, pColor)
     myButton.w = pID:getWidth()
     myButton.h = pID:getHeight()
   end
+
+  --update du texte du button
+  function myButton:updateLabel(pNewText)
+    self.label:updateText(pNewText)
+  end
   
   --update button
   function myButton:update(dt)
     self:updatePanel(dt)
+
+    if self.isPressed then
+      self.isPressed = false
+    end
     
     if self.isHover and love.mouse.isDown(1) and self.isPressed == false and self.oldButtonState == false then
       self.isPressed = true
+      self.isLocked = true
       if self.listEvents["pressed"] ~= nil then
         self.listEvents["pressed"](self.text)
       end
-    else
-      if self.isPressed and love.mouse.isDown(1) == false then 
-        self.isPressed = false
-      end
     end
+
+    if self.isPressed and love.mouse.isDown(1) == false then 
+        self.isLocked = false
+    end
+
+    
     
     self.oldButtonState = love.mouse.isDown(1)
   end

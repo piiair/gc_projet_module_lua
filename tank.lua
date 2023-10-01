@@ -8,8 +8,9 @@ local MiningMod = require("miningModule")
 local ExplodeMod = require("explodeModule")
 
 tank.RATES_SHOTS = {}
-tank.RATES_SHOTS[1] = 0.5
-tank.RATES_SHOTS[2] = 3
+tank.RATES_SHOTS[1] = 0.75
+tank.RATES_SHOTS[2] = 3.5
+tank.RATES_SHOTS[3] = 5.5
 
 --Fixe
 tank.imageTank = love.graphics.newImage("images/tank.png")
@@ -19,9 +20,11 @@ tank.heightTank = tank.imageTank:getHeight()
 tank.widthBarrel = tank.imageBarrel:getWidth()
 tank.heightBarrel = tank.imageBarrel:getHeight()
 
+local sndCollectGold = love.audio.newSource("sounds/collectgold.wav", "static")
+local sndExplodeTank = love.audio.newSource("sounds/explodeTank.wav", "static")
+local sndCollide = love.audio.newSource("sounds/collision.wav", "static")
+
 local MouseX, MouseY
-local SPACE_K__PRESSED
-local canHeal
 
 --Variable
 function tank.reset()
@@ -37,13 +40,14 @@ function tank.reset()
   tank.inertiaCap = 0
   tank.hpMax = 0
   tank.hp = 0
-  tank.timerShot = 0
+  tank.timersShots = {}
   tank.goldStock = 0
+  tank.currentWeapon = 0
   tank.engineIsOn = false
   tank.gameOver = false
   tank.isDead = false
 
-  SPACE_K__PRESSED = false
+  SPACE_K_PRESSED = false
   canHeal = true
 end
 
@@ -51,6 +55,7 @@ local function resetPosIfCollide(pIsCollide, pX, pY)
   if pIsCollide then
     tank.x = pX
     tank.y = pY
+    sndCollide:play()
   end
 end
 
@@ -111,6 +116,8 @@ local function VerifyCollideWithEntities(pOldPosX, pOldPosY)
     if isCollide then
       c.isDeletable = true
       tank.goldStock = tank.goldStock + 1
+      sndCollectGold:stop()
+      sndCollectGold:play()
     end
   end
 end
@@ -122,6 +129,7 @@ function tank.hurts(pDammage)
       tank.hp = 0
       tank.isDead = true
       ExplodeMod.createMultiExplode(tank.x, tank.y, tank.widthTank, tank.heightTank)
+      sndExplodeTank:play()
     end
   end
 end
@@ -146,14 +154,14 @@ function tank.load()
   tank.inertiaCap = 0.75
   tank.hpMax = 10
   tank.hp = tank.hpMax
-  tank.timerShot1 = tank.RATES_SHOTS[1]
-  tank.timerShot2 = tank.RATES_SHOTS[2]
+  tank.timersShots = {}
+  for n = 1, 3 do
+    tank.timersShots[n] = 0.2
+  end
   tank.goldStock = 0
+  tank.currentWeapon = 1
   tank.engineIsOn = false
   tank.gameOver = false
-
-  SPACE_K__PRESSED = false
-  canHeal = true
 
   MouseX, MouseY = love.mouse.getPosition()
   tank.isDead = false
@@ -161,23 +169,11 @@ end
 
 function tank.update(dt)
   if tank.hp > 0 then
-    --upgrades et actions diverses
-    if love.keyboard.isDown("space") then
-      SPACE_K__PRESSED = true
-      if canHeal then
-        Heal()
+    --timers tirs du tank
+    for n = 1, #tank.timersShots do
+      if tank.timersShots[n] > 0 then
+        tank.timersShots[n] = tank.timersShots[n] - dt
       end
-    else
-      SPACE_K__PRESSED = false
-      canHeal = true
-    end
-
-    --tirs du tank
-    if tank.timerShot1 > 0 then
-      tank.timerShot1 = tank.timerShot1 - dt
-    end
-    if tank.timerShot2 > 0 then
-      tank.timerShot2 = tank.timerShot2 - dt
     end
 
     --rotation du tank
@@ -265,6 +261,24 @@ function tank.draw()
 
     --dessin du canon
     love.graphics.draw(tank.imageBarrel, tank.x, tank.y, math.rad(tank.angleBarrel), 1, 1, 5, tank.heightBarrel / 2)
+
+    --test variables
+    love.graphics.print(tostring(tank.currentWeapon))
+  end
+end
+
+function tank.keypressed(key)
+  if tank.hp > 0 then
+    if key == "s" then
+      tank.currentWeapon = tank.currentWeapon + 1
+      if tank.currentWeapon > 3 then
+        tank.currentWeapon = 1
+      end
+    end
+
+    if key == "space" then
+      Heal()
+    end
   end
 end
 
