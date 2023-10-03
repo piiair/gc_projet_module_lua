@@ -1,5 +1,7 @@
 local settings = {}
 
+--math.randomseed(os.time())
+
 --La fenêtre
 love.window.setMode(1280, 720)
 --love.window.setTitle("Tank quelque chose")

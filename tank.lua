@@ -23,8 +23,11 @@ tank.heightBarrel = tank.imageBarrel:getHeight()
 local sndCollectGold = love.audio.newSource("sounds/collectgold.wav", "static")
 local sndExplodeTank = love.audio.newSource("sounds/explodeTank.wav", "static")
 local sndCollide = love.audio.newSource("sounds/collision.wav", "static")
+local sndSwapWeapon = love.audio.newSource("sounds/swapWeapon.wav", "static")
 
 local MouseX, MouseY
+local oldRightBtnState
+local rightBtnState
 
 --Variable
 function tank.reset()
@@ -47,8 +50,8 @@ function tank.reset()
   tank.gameOver = false
   tank.isDead = false
 
-  SPACE_K_PRESSED = false
-  canHeal = true
+  oldRightBtnState = nil
+  rightBtnState = nil
 end
 
 local function resetPosIfCollide(pIsCollide, pX, pY)
@@ -152,7 +155,7 @@ function tank.load()
   tank.velocity = 0
   tank.velocityMax = 1.25
   tank.inertiaCap = 0.75
-  tank.hpMax = 10
+  tank.hpMax = 20
   tank.hp = tank.hpMax
   tank.timersShots = {}
   for n = 1, 3 do
@@ -162,9 +165,11 @@ function tank.load()
   tank.currentWeapon = 1
   tank.engineIsOn = false
   tank.gameOver = false
+  tank.isDead = false
 
   MouseX, MouseY = love.mouse.getPosition()
-  tank.isDead = false
+  rightBtnState = love.mouse.isDown(2)
+  oldRightBtnState = rightBtnState
 end
 
 function tank.update(dt)
@@ -204,6 +209,18 @@ function tank.update(dt)
     --rotation du canon
     MouseX, MouseY = love.mouse.getPosition()
     tank.angleBarrel = MathMod.getAngle(tank.x, tank.y, MouseX, MouseY, "degAbsolute")
+
+    --changement d'arme
+    rightBtnState = love.mouse.isDown(2)
+    if rightBtnState and oldRightBtnState == false then
+      tank.currentWeapon = tank.currentWeapon + 1
+      if tank.currentWeapon > 3 then
+        tank.currentWeapon = 1
+      end
+      sndSwapWeapon:stop()
+      sndSwapWeapon:play()
+    end
+    oldRightBtnState = rightBtnState
 
     --avancée du tank
     local oldPosX = tank.x
@@ -269,13 +286,6 @@ end
 
 function tank.keypressed(key)
   if tank.hp > 0 then
-    if key == "s" then
-      tank.currentWeapon = tank.currentWeapon + 1
-      if tank.currentWeapon > 3 then
-        tank.currentWeapon = 1
-      end
-    end
-
     if key == "space" then
       Heal()
     end

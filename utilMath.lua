@@ -55,24 +55,44 @@ function utilMath.verifyCollideAxeY(pRefY, pRefH, pObjY, pObjH)
   return isCollide
 end
 
-function utilMath.verifyCollideScreenBorders(pObj, pScreenW, pScreenH, pTypeCollision)
+function utilMath.verifyCollideScreenBorders(pObj, pScreenW, pScreenH, pTypeCollision, pHasImg)
   local isCollide = false
+  local hasImage = pHasImg or true
 
-  if pTypeCollision == "inside" then
-    if pObj.x < 0 + pObj.image:getWidth()/2 or
-      pObj.x > pScreenW - pObj.image:getWidth()/2 or
-      pObj.y < 0 + pObj.image:getHeight()/2 or
-      pObj.y > pScreenH - pObj.image:getHeight()/2 then
+  if hasImage then
+    if pTypeCollision == "inside" then
+      if pObj.x < 0 + pObj.image:getWidth()/2 or
+        pObj.x > pScreenW - pObj.image:getWidth()/2 or
+        pObj.y < 0 + pObj.image:getHeight()/2 or
+        pObj.y > pScreenH - pObj.image:getHeight()/2 then
+          isCollide = true
+      end
+    elseif pTypeCollision == "outside" then
+      if pObj.x < 0 - pObj.image:getWidth()/2 or
+      pObj.x > pScreenW + pObj.image:getWidth()/2 or
+      pObj.y < 0 - pObj.image:getHeight()/2 or
+      pObj.y > pScreenH + pObj.image:getHeight()/2 then
         isCollide = true
+      end
     end
-  elseif pTypeCollision == "outside" then
-    if pObj.x < 0 - pObj.image:getWidth()/2 or
-    pObj.x > pScreenW + pObj.image:getWidth()/2 or
-    pObj.y < 0 - pObj.image:getHeight()/2 or
-    pObj.y > pScreenH + pObj.image:getHeight()/2 then
-      isCollide = true
+  else
+    if pTypeCollision == "inside" then
+      if pObj.x < 0 + pObj.w/2 or
+        pObj.x > pScreenW - pObj.w/2 or
+        pObj.y < 0 + pObj.h/2 or
+        pObj.y > pScreenH - h/2 then
+          isCollide = true
+      end
+    elseif pTypeCollision == "outside" then
+      if pObj.x < 0 - pObj.w/2 or
+      pObj.x > pScreenW + pObj.w/2 or
+      pObj.y < 0 - pObj.h/2 or
+      pObj.y > pScreenH + pObj.h/2 then
+        isCollide = true
+      end
+    end
   end
-  end
+  
 
   return isCollide
 end

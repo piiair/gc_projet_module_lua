@@ -2,6 +2,7 @@ local GuiGame = {}
 
 local GCGUI = require("GCGUI")
 local SettingsMod = require("settings")
+local MathMod = require("utilMath")
 local UpMod = require("upgrade")
 local GoldMod = require("gold")
 local Tank = require("tank")
@@ -55,42 +56,39 @@ end
 function GuiGame.loadMenuGroup()
   GuiGame.menuGroup = GCGUI.newGroup()
   local menuButtonPlay =
-    GCGUI.newButton(
-      SettingsMod.screenW / 2 - imageButton.w / 2, 
-      125, 
-      imageButton.w, 
-      imageButton.h, 
-      "Play", 
-      GCGUI.font
-  )
+    GCGUI.newButton(SettingsMod.screenW / 2 - imageButton.w / 2, 125, imageButton.w, imageButton.h, "Play", GCGUI.font)
   menuButtonPlay:setImage(imageButton.image)
 
   local missionText = "Soldier ! Your mission is to destroy all enemies units before they got you!"
   local textMission = GCGUI.newText(0, 200, SettingsMod.screenW, 50, missionText, GCGUI.font, "center", "center")
 
-  local controlsText = "[Z] to move, [Q] / [D] to rotate"
-  local textcontrols = GCGUI.newText(0, 300, SettingsMod.screenW, 50, controlsText, GCGUI.fontMedium, "center", "center")
+  local marginLeft = 275
+  local gameplayText = "~ Collect golds to upgrade your weapons or repair your tank."
+  local textGameplay = GCGUI.newText(marginLeft , 250, SettingsMod.screenW, 50, gameplayText, GCGUI.fontMedium, "", "center")
 
-  local utilsText = "[S] to swap weapon, [SPACE] to repair"
-  local textUtils = GCGUI.newText(0, 350, SettingsMod.screenW, 50, utilsText, GCGUI.fontMedium, "center", "center")
+  local controlsText = "~ [Z] to move, [Q] / [D] to rotate"
+  local textcontrols = GCGUI.newText(marginLeft, 300, SettingsMod.screenW, 50, controlsText, GCGUI.fontMedium, "", "center")
 
-  local shootText = "[LEFT CLICK] to shoot with current weapon"
-  local textShoot = GCGUI.newText(0, 400, SettingsMod.screenW, 50, shootText, GCGUI.fontMedium, "center", "center")
+  local utilsText = "~ [S] to swap weapon"
+  local textUtils = GCGUI.newText(marginLeft, 350, SettingsMod.screenW, 50, utilsText, GCGUI.fontMedium, "", "center")
 
-  local healText = "[SPACE] to heal"
-  local textHeal = GCGUI.newText(0, 450, SettingsMod.screenW, 50, healText, GCGUI.fontMedium, "center", "center")
+  local shootText = "~ [LEFT CLICK] to shoot with current weapon"
+  local textShoot = GCGUI.newText(marginLeft, 400, SettingsMod.screenW, 50, shootText, GCGUI.fontMedium, "", "center")
+
+  local healText = "~ [SPACE] spend gold to repair"
+  local textHeal = GCGUI.newText(marginLeft, 450, SettingsMod.screenW, 50, healText, GCGUI.fontMedium, "", "center")
 
   local glText = "Good luck soldier !"
   local textGl = GCGUI.newText(0, 550, SettingsMod.screenW, 50, glText, GCGUI.font, "center", "center")
 
   GuiGame.menuGroup:addElement(menuButtonPlay)
   GuiGame.menuGroup:addElement(textMission)
+  GuiGame.menuGroup:addElement(textGameplay)
   GuiGame.menuGroup:addElement(textcontrols)
   GuiGame.menuGroup:addElement(textUtils)
   GuiGame.menuGroup:addElement(textShoot)
   GuiGame.menuGroup:addElement(textHeal)
   GuiGame.menuGroup:addElement(textGl)
-
 end
 
 function GuiGame.updateMenuGroup(dt)
@@ -121,21 +119,26 @@ function GuiGame.loadGameGroup()
 
   --Infos sur les golds et upgrades
   local refY = 110
-  local margY = 40
+  local margY = 30
 
   local goldText = "Golds: " .. tostring(Tank.goldStock)
   local goldPanel =
-    GCGUI.newText(W + margL, refY, SettingsMod.MARGIN_GUI_PLAYER, 30, goldText, GCGUI.font, "", "center")
+    GCGUI.newText(W + margL, refY, SettingsMod.MARGIN_GUI_PLAYER, 30, goldText, GCGUI.fontMedium, "", "center")
 
-  local priceText = "Cost = lvl x 1Gold"
+  local priceText = "Cost = level x 1G"
   local pricePanel =
-    GCGUI.newText(W + margL, refY + margY, SettingsMod.MARGIN_GUI_PLAYER, 30, priceText, GCGUI.font, "", "center")
+    GCGUI.newText(W + margL, refY + margY, SettingsMod.MARGIN_GUI_PLAYER, 30, priceText, GCGUI.fontMedium, "", "center")
 
+  --Le heal
+  local healText = "To repair : 1G = 1HP"
+  local panelHeal = GCGUI.newText(W + margL, refY + margY * 2, SettingsMod.MARGIN_GUI_PLAYER, 30, healText, GCGUI.fontMedium, "", "center")
+  
   guiPlayer:addElement(panelBG)
   guiPlayer:addElement(textEnemiesRemaining)
   guiPlayer:addElement(scorePanel)
   guiPlayer:addElement(goldPanel)
   guiPlayer:addElement(pricePanel)
+  guiPlayer:addElement(panelHeal)
 
   --partie upgrades
   --les images des projectiles
@@ -145,7 +148,7 @@ function GuiGame.loadGameGroup()
     local w = image:getWidth()
     local h = image:getHeight()
     local x = W + margL * 6 + (widthPerImage * (n - 1)) + ((widthPerImage - w) / 2)
-    local y = refY + (2 * margY) + ((margY - h) / 2)
+    local y = refY + (3 * margY) + ((margY - h) / 2)
     local panelBullet = GCGUI.newPanel(x, y, w, h)
     panelBullet:setImage(image)
     guiPlayer:addElement(panelBullet)
@@ -157,7 +160,7 @@ function GuiGame.loadGameGroup()
     local w = image:getWidth()
     local h = image:getHeight()
     local x = W + margL / 2
-    local y = refY + (3 * margY) + (60 * (n - 1)) + ((60 - h) / 2)
+    local y = refY + (4 * margY) + (60 * (n - 1)) + ((60 - h) / 2)
     local panelUpgrade = GCGUI.newPanel(x, y, w, h)
     panelUpgrade:setImage(image)
     guiPlayer:addElement(panelUpgrade)
@@ -177,7 +180,7 @@ function GuiGame.loadGameGroup()
       local textChar = tostring(char.lvl) .. "/" .. signBonus .. tostring(char.bonus)
       local size = 48
       local x = W + margL * 6 + (widthPerImage * (n - 1)) + size / 2
-      local y = refY + (2 * margY) + (60 * (N - 1)) + size
+      local y = refY + (3 * margY) + (60 * (N - 1)) + size
       local btnChar = GCGUI.newButton(x, y, size, size, textChar, GCGUI.fontLitte)
       btnChar:setImages(imageBtnCharDefault, imageBtnCharHover, imageBtnCharPressed)
       btnChar.idBul = n
@@ -186,10 +189,27 @@ function GuiGame.loadGameGroup()
     end
   end
 
-  --Le heal
-  local healText = "[SPACE] to repair : 1G = 1HP"
-  local panelHeal = GCGUI.newText(W + margL, 475, SettingsMod.MARGIN_GUI_PLAYER, 30, healText, GCGUI.font, "", "center")
-  guiPlayer:addElement(panelHeal)
+  --L'arme équipée
+  local imgRef = ShotMod.LST_IMGS_SHOTS_ALLY[3]
+  local Xcenter = W + (SettingsMod.MARGIN_GUI_PLAYER - imgRef:getWidth()) / 2
+  local panelWeaponBorder = GCGUI.newPanel(
+    Xcenter - 2,
+    refY + margY * 15 - 2,
+    imgRef:getWidth() + 4,
+    imgRef:getHeight() + 4,
+    {100 / 255, 100 / 255, 50 / 255}
+  )
+
+  local panelWeapon = GCGUI.newPanel(
+    Xcenter,
+    refY + margY * 15,
+    imgRef:getWidth(),
+    imgRef:getHeight()
+  )
+  panelWeapon:setImage(ShotMod.LST_IMGS_SHOTS_ALLY[Tank.currentWeapon])
+
+  guiPlayer:addElement(panelWeaponBorder)
+  guiPlayer:addElement(panelWeapon)
 
   GuiGame.gameGroup:addElement(gameHpBarPlayer)
   GuiGame.gameGroup:addElement(guiPlayer)
@@ -352,6 +372,17 @@ function GuiGame.updateGameGroup(dt)
       GuiGame.gameGroup.elements[2].elements[n]:updateLabel(textChar)
     end
   end
+
+  --L'arme équipée
+  local currWeaponImage = ShotMod.LST_IMGS_SHOTS_ALLY[Tank.currentWeapon]
+  local borderPanel = GuiGame.gameGroup.elements[2].elements[#GuiGame.gameGroup.elements[2].elements - 1]
+  local panelWeapon = GuiGame.gameGroup.elements[2].elements[#GuiGame.gameGroup.elements[2].elements]
+  panelWeapon:setImage(currWeaponImage)
+  panelWeapon.setPosition(
+    borderPanel.x + (borderPanel.w - panelWeapon.w) / 2,
+    borderPanel.y + (borderPanel.h - panelWeapon.h) / 2
+  )
+
 end
 
 function GuiGame.drawBarsGameGroup()

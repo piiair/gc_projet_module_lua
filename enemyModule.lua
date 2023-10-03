@@ -23,6 +23,7 @@ enemyModule.TANK_HEIGHT = LIST_IMG_TANKS[1]:getHeight()
 enemyModule.BARREL_WIDTH = LIST_IMG_BARREL[1]:getWidth()
 
 local sndExplodeTank = love.audio.newSource("sounds/explodeTank.wav", "static")
+local sndDroneAddTank = love.audio.newSource("sounds/droneFinish.wav", "static")
 
 local LIST_SPD_ENEMIES = {}
 LIST_SPD_ENEMIES[1] = 100
@@ -37,9 +38,9 @@ LIST_HP_ENEMIES[3] = 6
 LIST_HP_ENEMIES[4] = 2
 
 local LIST_DIST_DETEC = {}
-LIST_DIST_DETEC[1] = 325
-LIST_DIST_DETEC[2] = 375
-LIST_DIST_DETEC[3] = 725
+LIST_DIST_DETEC[1] = 300
+LIST_DIST_DETEC[2] = 325
+LIST_DIST_DETEC[3] = 600
 
 local LIST_COEF_DIST_SHOOT = {}
 LIST_COEF_DIST_SHOOT[1] = 0.75
@@ -73,9 +74,10 @@ enemyModule.ENEMIES_PER_LEVEL[1] = 10
 
 local SPD_ROTA_TANK = 100
 local SPD_ROTA_BARREL = 125
-local TIMER_MOVE = 0.5
+local TIMER_MOVE = 1
 local TIMER_RADAR = 0.25
 local TIMER_EXTRACT = 1.25
+local TIMER_STEPBACK = 0.15
 local TIMER_RUNDOWN = 1
 local BASE_HP = 2
 
@@ -83,7 +85,7 @@ enemyModule.FULL_STOCK_ENERGY = 4
 
 --Spawn
 local TIMER_SPAWN_TANK_REF = 5
-local TIMER_SPAWN_DRONE_REF = 5
+local TIMER_SPAWN_DRONE_REF = 3.5
 local timerSpawn = nil
 local timerSpawnDrone = nil
 
@@ -96,6 +98,7 @@ local STATE_RADAR = "radar"
 local STATE_CHASE = "chase"
 local STATE_CHANGEDIR = "chd"
 local STATE_MOVE = "move"
+local STATE_STEPBACK = "stepback"
 local STATE_SHOOT = "shoot"
 local STATE_TARGET = "target"
 local STATE_MINE = "mine"
@@ -216,8 +219,37 @@ local function TargetCloserSpot(pDroneX, pDroneY, pSpotType)
   return iCloser
 end
 
+local function MakeListEmptySpawns()
+  local DistMin = 175
+  local list = {}
+  for n = 1, #LIST_SPAWN do
+    local spawn = LIST_SPAWN[n]
+    local isEmpty = true
+    for i = 1, #enemyModule.listEnemies do 
+      local enemy = enemyModule.listEnemies[i]
+      local dist = MathMod.absoluteDistance(spawn.x, spawn.y, enemy.x, enemy.y)
+      if dist <= DistMin then
+        isEmpty = false
+        break
+      end
+    end
+
+    if isEmpty then
+      table.insert(list, LIST_SPAWN[n])
+    end
+  end
+
+  return list
+end
+
 local function CreateEnemySkeleton(pType)
-  local currentSpawn = LIST_SPAWN[math.random(1, 8)]
+  local currentSpawn
+  if pType < 4 then
+    local listEmptySpawn = MakeListEmptySpawns()
+    currentSpawn = listEmptySpawn[math.random(1, #listEmptySpawn)]
+  else
+    currentSpawn = LIST_SPAWN[math.random(1, 8)]
+  end
 
   local skeleton = {}
   skeleton.id = countEnemy
@@ -302,7 +334,7 @@ local function VerifyCollideWidthEntities(pEnemyX, pEnemyY, pEnemyIndex)
 
   for n = 1, #enemyModule.listEnemies do
     local e = enemyModule.listEnemies[n]
-    if pEnemyIndex ~= n then
+    if pEnemyIndex ~= n and e.type < 4 then
       isCollide = MathMod.verifyCollideGeneral(
         pEnemyX, pEnemyY, enemyModule.TANK_WIDTH, enemyModule.TANK_HEIGHT, 
         e.x, e.y, enemyModule.TANK_WIDTH, enemyModule.TANK_HEIGHT)
@@ -384,8 +416,6 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
   --Machine à états tank
   if e.type < 4 then 
     if e.state == STATE_SPAWN then
-      local oldPosX = e.x
-      local oldPosY = e.y
       e.timerMove = e.timerMove - dt
       e.x = CalculNewPosByAxe(e.x, e.angleBody, LIST_SPD_ENEMIES[e.type] , "cos", dt)
       e.y = CalculNewPosByAxe(e.y, e.angleBody, LIST_SPD_ENEMIES[e.type] , "sin", dt)
@@ -395,7 +425,8 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
       if isCollide then
         e.x = oldPosX
         e.y = oldPosY
-        e.state = STATE_NULL
+        e.state = STATE_STEPBACK
+        e.timerStepBack = TIMER_STEPBACK
       else
         if e.timerMove <= 0 then
           e.newDirectionAngle = math.random(20, 40)
@@ -408,7 +439,7 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
       e.timerShot = LIST_TIMER_SHOT[e.type]
       e.angleBarrel = e.angleBody
 
-      if e.counterCollide == 2 then
+      if e.counterCollide == 3 then
         e.counterCollide = 0
         e.newDirectionAngle = 180
       else
@@ -423,16 +454,14 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
     elseif e.state == STATE_RADAR then
       e.timerRadar = e.timerRadar - dt
 
+      local playerIsInArea = PlayerIsInDetectionArea(e.x, e.y, e.angleBody, e.type, pPlayerX, pPlayerY)
+      if playerIsInArea then
+        e.state = STATE_CHASE
+      end
+
       --Quand timer à 0 on tire si joueur sinon état null pour un nouveau cycle
       if e.timerRadar <= 0 then
-        local playerIsInArea = PlayerIsInDetectionArea(e.x, e.y, e.angleBody, e.type, pPlayerX, pPlayerY)
-        --Si joueur détecté alors on passe à la procédure de tir
-        if playerIsInArea then
-          e.state = STATE_CHASE
-        else
-          e.newDirectionAngle = math.random(20, 40)
-          e.state = STATE_NULL
-        end
+        e.state = STATE_NULL
       end
     elseif e.state == STATE_CHASE then
       local distPlayer = MathMod.absoluteDistance(e.x, e.y, pPlayerX, pPlayerY)
@@ -466,7 +495,8 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
           e.x = oldPosX
           e.y = oldPosY
           e.counterCollide = e.counterCollide + 1
-          e.state = STATE_NULL
+          e.state = STATE_STEPBACK
+          e.timerStepBack = TIMER_STEPBACK
         else
           --Si le joueur est proche et que le canon pointe vers lui on tire
           local newDistPlayer = MathMod.absoluteDistance(e.x, e.y, pPlayerX, pPlayerY)
@@ -511,11 +541,29 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
         e.x = oldPosX
         e.y = oldPosY
         e.counterCollide = e.counterCollide + 1
-        e.state = STATE_NULL
+        e.state = STATE_STEPBACK
+        e.timerStepBack = TIMER_STEPBACK
       else
         if e.timerMove <= 0 then
           e.state = STATE_RADAR
+          e.counterCollide = 0
         end
+      end
+    elseif e.state == STATE_STEPBACK then
+      e.timerStepBack = e.timerStepBack - dt
+      
+      e.x = CalculNewPosByAxe(e.x, e.angleBody, -LIST_SPD_ENEMIES[e.type]/2 , "cos", dt)
+      e.y = CalculNewPosByAxe(e.y, e.angleBody, -LIST_SPD_ENEMIES[e.type]/2 , "sin", dt)
+
+      local isOutOfMap = VerifyCollideWall(e.x, e.y)
+      local isCollideWithOtherEnemy = VerifyCollideWidthEntities(e.x, e.y, pIndex)
+
+      if e.timerStepBack <= 0 then
+        e.state = STATE_NULL
+      elseif isOutOfMap or isCollideWithOtherEnemy then
+        e.x = oldPosX
+        e.y = oldPosY
+        e.state = STATE_NULL
       end
     elseif e.state == STATE_SHOOT then
       if e.type == 1 or e.type == 2 then
@@ -637,6 +685,8 @@ local function UpdateEnemyByState(pIndex, dt, pPlayerX, pPlayerY)
 
       if e.stockEnergy == 0 then
         e.isTaskFinished = true
+        sndDroneAddTank:stop()
+        sndDroneAddTank:play()
       end
     end
   end
@@ -654,7 +704,7 @@ function enemyModule.update(dt, pPlayer)
   end
 
   timerSpawnDrone = timerSpawnDrone - dt
-  if timerSpawnDrone <= 0 then
+  if timerSpawnDrone <= 0 and enemyModule.enemiesStock > 0 then
     timerSpawnDrone = TIMER_SPAWN_DRONE_REF
     CreateEnemy(4)
   end
