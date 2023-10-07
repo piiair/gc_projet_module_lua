@@ -29,7 +29,7 @@ local LIST_SPD_ENEMIES = {}
 LIST_SPD_ENEMIES[1] = 100
 LIST_SPD_ENEMIES[2] = 125
 LIST_SPD_ENEMIES[3] = 50
-LIST_SPD_ENEMIES[4] = 175
+LIST_SPD_ENEMIES[4] = 160
 
 local LIST_HP_ENEMIES = {}
 LIST_HP_ENEMIES[1] = 3
@@ -84,12 +84,11 @@ local BASE_HP = 2
 enemyModule.FULL_STOCK_ENERGY = 4
 
 --Spawn
+local LIST_SPAWN = {}
 local TIMER_SPAWN_TANK_REF = 4.5
 local TIMER_SPAWN_DRONE_REF = 3
 local timerSpawn = nil
 local timerSpawnDrone = nil
-
-local LIST_SPAWN = {}
 
 --machine à états
 local STATE_SPAWN = "spawn"
@@ -115,6 +114,7 @@ function enemyModule.reset()
   timerSpawn = nil
   timerSpawnDrone = nil
   countEnemy = nil
+  LIST_SPAWN = nil
   enemyModule.enemiesStock = nil
   enemyModule.listEnemies = nil
   enemyModule.listDeadIds = nil
@@ -125,6 +125,8 @@ end
 local function loadSpawns()
   local W = SettingsMod.screenW - SettingsMod.MARGIN_GUI_PLAYER
   local H = SettingsMod.screenH
+
+  LIST_SPAWN = {}
 
   local spawn1 = {}
   spawn1.x = 0
@@ -345,30 +347,29 @@ local function VerifyCollideWidthEntities(pEnemyX, pEnemyY, pEnemyIndex)
   return isCollide
 end
 
-local function RotateElement(pEnemyAngleElement, pAngleAtObject, pSpeed, dt)
-  local diffAngle = math.abs(pEnemyAngleElement - pAngleAtObject)
-  local newAngle
+local function RotateElement(pEnemyAngle, pAngleAtObject, pSpeed, dt)
+  local diffAngle = math.abs(pEnemyAngle - pAngleAtObject)
+  local newAngle = pEnemyAngle
 
-  if pEnemyAngleElement > pAngleAtObject then
+  if pEnemyAngle > pAngleAtObject then
     if diffAngle < 180 then
-      newAngle = pEnemyAngleElement - pSpeed * dt
+      newAngle = pEnemyAngle - pSpeed * dt
     else
-      newAngle = pEnemyAngleElement + pSpeed * dt
+      newAngle = pEnemyAngle + pSpeed * dt
     end
-  elseif pEnemyAngleElement < pAngleAtObject then
+  elseif pEnemyAngle < pAngleAtObject then
     if diffAngle < 180 then
-      newAngle = pEnemyAngleElement + pSpeed * dt
+      newAngle = pEnemyAngle + pSpeed * dt
     else
-      newAngle = pEnemyAngleElement - pSpeed * dt
+      newAngle = pEnemyAngle - pSpeed * dt
     end
   end
-
   return newAngle
 end
 
 local function ControllAngleElement(pAngleElement)
   local newAngle = pAngleElement
-  if pAngleElement > 360 then
+  if pAngleElement >= 360 then
     newAngle = pAngleElement - 360
   elseif pAngleElement < 0 then
     newAngle = pAngleElement + 360
@@ -689,14 +690,14 @@ end
 
 function enemyModule.update(dt, pPlayer)
   --spawn des ennemis
-  if enemyModule.enemiesStock > 0 then
-    timerSpawn = timerSpawn - dt
-    if timerSpawn < 0 then
-      timerSpawn = TIMER_SPAWN_TANK_REF
-      CreateEnemy(math.random(1, 3))
-      enemyModule.enemiesStock = enemyModule.enemiesStock - 1
-    end
-  end
+  -- if enemyModule.enemiesStock > 0 then
+  --   timerSpawn = timerSpawn - dt
+  --   if timerSpawn < 0 then
+  --     timerSpawn = TIMER_SPAWN_TANK_REF
+  --     CreateEnemy(math.random(1, 3))
+  --     enemyModule.enemiesStock = enemyModule.enemiesStock - 1
+  --   end
+  -- end
 
   if timerSpawnDrone > 0 then
     timerSpawnDrone = timerSpawnDrone - dt

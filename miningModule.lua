@@ -87,16 +87,16 @@ function miningMod.draw()
     love.graphics.draw(imgSite, s.x, s.y, 0, 1, 1, miningMod.mineW / 2, miningMod.mineH / 2)
   end
 
-  love.graphics.print(miningMod.totalStock, 100)
-  local totalStock = 0
-  local totalMinor = 0
-  for n = 1, #miningMod.listSites do
-    local s = miningMod.listSites[n]
-    totalStock = totalStock + s.stock 
-    totalMinor = totalMinor + s.minor
-  end
-  love.graphics.print(totalStock, 100, 20)
-  love.graphics.print(totalMinor, 100, 40)
+  -- love.graphics.print(miningMod.totalStock, 100)
+  -- local totalStock = 0
+  -- local totalMinor = 0
+  -- for n = 1, #miningMod.listSites do
+  --   local s = miningMod.listSites[n]
+  --   totalStock = totalStock + s.stock 
+  --   totalMinor = totalMinor + s.minor
+  -- end
+  -- love.graphics.print(totalStock, 100, 20)
+  -- love.graphics.print(totalMinor, 100, 40)
 end
 
 return miningMod
