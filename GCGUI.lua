@@ -26,7 +26,7 @@ local function newElement(pX, pY)
   function myElement:setVisible(pVisible)
     self.visible = pVisible
   end
-  
+
   return myElement
 end
 
@@ -149,16 +149,22 @@ function GCGUI.newText(pX, pY, pW, pH, pText, pFont, pHAlign, pVAlign)
   myText.textH = pFont:getHeight(pText)
   myText.hAlign = pHAlign
   myText.vAlign = pVAlign
+  myText.colorText = {1, 1, 1 ,1}
   
   function myText:updateText(pNewText)
     self.text = pNewText
     self.textW = pFont:getWidth(pNewText)
     self.textH = pFont:getHeight(pNewText)
   end
+
+  function myText:setColorText(pColor)
+    self.colorText = pColor
+  end
   
   function myText:draw()
     if self.visible then 
-      love.graphics.setColor(1, 1, 1)
+      local col = myText.colorText
+      love.graphics.setColor(col[1], col[2], col[3], col[4])
       love.graphics.setFont(self.font)
       local x = self.x
       local y = self.y

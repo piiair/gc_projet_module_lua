@@ -12,7 +12,7 @@ local DROP_RAY = 20
 gold.listCoin = nil
 
 function gold.genereGold(pEnemy)
-  local rnd = math.random(1, pEnemy.hpMax)
+  local rnd = math.random(1, math.floor(pEnemy.hpMax / 2))
   for n = 1, rnd do 
     local c = {}
     c.image = imgGold

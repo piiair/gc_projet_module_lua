@@ -11,8 +11,8 @@ local MiningMod = require("miningModule")
 shotModule.listShots = nil
 
 --utils pour les missiles
-local LIMIT_COUNTER_SINUSOIDE = 0.2
-local CONST_DEVIATION = 25
+local LIMIT_COUNTER_SINUSOIDE = 0.15
+local CONST_DEVIATION = 50
 
 shotModule.LST_IMGS_SHOTS_ALLY = {}
 for n = 1, 3 do

@@ -59,30 +59,43 @@ function GuiGame.loadMenuGroup()
     GCGUI.newButton(SettingsMod.screenW / 2 - imageButton.w / 2, 125, imageButton.w, imageButton.h, "Play", GCGUI.font)
   menuButtonPlay:setImage(imageButton.image)
 
-  local missionText = "Soldier ! Your mission is to destroy all enemies units before they got you!"
+  local missionText = "Soldier ! Your mission is to destroy all enemies units before they kill you!"
   local textMission = GCGUI.newText(0, 200, SettingsMod.screenW, 50, missionText, GCGUI.font, "center", "center")
+  textMission:setColorText({200 / 255, 65 / 255, 20 / 255, 1})
+
+  local detailText = "Drones mine sites to build more tanks and those ones will try to destroy you !"
+  local textDetail = GCGUI.newText(0, 250, SettingsMod.screenW, 50, detailText, GCGUI.font, "center", "center")
+  textDetail:setColorText({200 / 255, 65 / 255, 20 / 255, 1})
 
   local marginLeft = 275
   local gameplayText = "~ Collect golds to upgrade your weapons or repair your tank."
-  local textGameplay = GCGUI.newText(marginLeft , 250, SettingsMod.screenW, 50, gameplayText, GCGUI.fontMedium, "", "center")
+  local textGameplay =
+    GCGUI.newText(marginLeft, 300, SettingsMod.screenW, 50, gameplayText, GCGUI.fontMedium, "", "center")
+  textGameplay:setColorText({200 / 255, 200 / 255, 130 / 255, 1})
 
   local controlsText = "~ [Z] to move, [Q] / [D] to rotate"
-  local textcontrols = GCGUI.newText(marginLeft, 300, SettingsMod.screenW, 50, controlsText, GCGUI.fontMedium, "", "center")
+  local textcontrols = GCGUI.newText(marginLeft, 350, SettingsMod.screenW, 50, controlsText, GCGUI.fontMedium, "", "center")
+  textcontrols:setColorText({200 / 255, 200 / 255, 130 / 255, 1})
 
-  local utilsText = "~ [S] to swap weapon"
-  local textUtils = GCGUI.newText(marginLeft, 350, SettingsMod.screenW, 50, utilsText, GCGUI.fontMedium, "", "center")
+  local utilsText = "~ [RIGHT CLICK] to swap weapon"
+  local textUtils = GCGUI.newText(marginLeft, 400, SettingsMod.screenW, 50, utilsText, GCGUI.fontMedium, "", "center")
+  textUtils:setColorText({200 / 255, 200 / 255, 130 / 255, 1})
 
-  local shootText = "~ [LEFT CLICK] to shoot with current weapon"
-  local textShoot = GCGUI.newText(marginLeft, 400, SettingsMod.screenW, 50, shootText, GCGUI.fontMedium, "", "center")
+  local shootText = "~ [LEFT CLICK] to shoot with current weapon and upgrade your weapons"
+  local textShoot = GCGUI.newText(marginLeft, 450, SettingsMod.screenW, 50, shootText, GCGUI.fontMedium, "", "center")
+  textShoot:setColorText({200 / 255, 200 / 255, 130 / 255, 1})
 
   local healText = "~ [SPACE] spend gold to repair"
-  local textHeal = GCGUI.newText(marginLeft, 450, SettingsMod.screenW, 50, healText, GCGUI.fontMedium, "", "center")
+  local textHeal = GCGUI.newText(marginLeft, 500, SettingsMod.screenW, 50, healText, GCGUI.fontMedium, "", "center")
+  textHeal:setColorText({200 / 255, 200 / 255, 130 / 255, 1})
 
   local glText = "Good luck soldier !"
   local textGl = GCGUI.newText(0, 550, SettingsMod.screenW, 50, glText, GCGUI.font, "center", "center")
+  textGl:setColorText({180 / 255, 65 / 255, 20 / 255, 1})
 
   GuiGame.menuGroup:addElement(menuButtonPlay)
   GuiGame.menuGroup:addElement(textMission)
+  GuiGame.menuGroup:addElement(textDetail)
   GuiGame.menuGroup:addElement(textGameplay)
   GuiGame.menuGroup:addElement(textcontrols)
   GuiGame.menuGroup:addElement(textUtils)
@@ -125,14 +138,24 @@ function GuiGame.loadGameGroup()
   local goldPanel =
     GCGUI.newText(W + margL, refY, SettingsMod.MARGIN_GUI_PLAYER, 30, goldText, GCGUI.fontMedium, "", "center")
 
-  local priceText = "Cost = level x 1G"
+  local priceText = "Cost = nextLevel x 2G"
   local pricePanel =
     GCGUI.newText(W + margL, refY + margY, SettingsMod.MARGIN_GUI_PLAYER, 30, priceText, GCGUI.fontMedium, "", "center")
 
   --Le heal
-  local healText = "To repair : 1G = 1HP"
-  local panelHeal = GCGUI.newText(W + margL, refY + margY * 2, SettingsMod.MARGIN_GUI_PLAYER, 30, healText, GCGUI.fontMedium, "", "center")
-  
+  local healText = "To repair : 3G = 1HP"
+  local panelHeal =
+    GCGUI.newText(
+    W + margL,
+    refY + margY * 2,
+    SettingsMod.MARGIN_GUI_PLAYER,
+    30,
+    healText,
+    GCGUI.fontMedium,
+    "",
+    "center"
+  )
+
   guiPlayer:addElement(panelBG)
   guiPlayer:addElement(textEnemiesRemaining)
   guiPlayer:addElement(scorePanel)
@@ -160,7 +183,7 @@ function GuiGame.loadGameGroup()
     local w = image:getWidth()
     local h = image:getHeight()
     local x = W + margL / 2
-    local y = refY + (4 * margY) + (60 * (n - 1)) + ((60 - h) / 2)
+    local y = refY + 10 + (4 * margY) + (60 * (n - 1)) + ((60 - h) / 2)
     local panelUpgrade = GCGUI.newPanel(x, y, w, h)
     panelUpgrade:setImage(image)
     guiPlayer:addElement(panelUpgrade)
@@ -192,7 +215,8 @@ function GuiGame.loadGameGroup()
   --L'arme équipée
   local imgRef = ShotMod.LST_IMGS_SHOTS_ALLY[3]
   local Xcenter = W + (SettingsMod.MARGIN_GUI_PLAYER - imgRef:getWidth()) / 2
-  local panelWeaponBorder = GCGUI.newPanel(
+  local panelWeaponBorder =
+    GCGUI.newPanel(
     Xcenter - 2,
     refY + margY * 15 - 2,
     imgRef:getWidth() + 4,
@@ -200,12 +224,7 @@ function GuiGame.loadGameGroup()
     {100 / 255, 100 / 255, 50 / 255}
   )
 
-  local panelWeapon = GCGUI.newPanel(
-    Xcenter,
-    refY + margY * 15,
-    imgRef:getWidth(),
-    imgRef:getHeight()
-  )
+  local panelWeapon = GCGUI.newPanel(Xcenter, refY + margY * 15, imgRef:getWidth(), imgRef:getHeight())
   panelWeapon:setImage(ShotMod.LST_IMGS_SHOTS_ALLY[Tank.currentWeapon])
 
   guiPlayer:addElement(panelWeaponBorder)
@@ -256,6 +275,9 @@ function GuiGame.updateGameGroup(dt)
   --La barre hp du joueur
   GuiGame.gameGroup.elements[1]:setValue(Tank.hp)
   GuiGame.gameGroup.elements[1].setPosition(Tank.x - Tank.widthTank / 2, Tank.y - Tank.heightTank - 10)
+  if Tank.hp == 0 then
+    GuiGame.gameGroup.elements[1]:setVisible(false)
+  end
 
   --Les barres hp/energy des ennemis
   local groupBarHp = GuiGame.gameGroup.hpBarsGroup
@@ -382,7 +404,6 @@ function GuiGame.updateGameGroup(dt)
     borderPanel.x + (borderPanel.w - panelWeapon.w) / 2,
     borderPanel.y + (borderPanel.h - panelWeapon.h) / 2
   )
-
 end
 
 function GuiGame.drawBarsGameGroup()
@@ -419,34 +440,20 @@ end
 function GuiGame.loadVictoryGroup()
   GuiGame.victoryGroup = GCGUI.newGroup()
 
+  local text = "You Win !"
+  local victoryText = GCGUI.newText(0, 0, W, 300, text, GCGUI.font, "center", "center")
+
   local victoryButtonRestart =
-    GCGUI.newButton(
-    SettingsMod.screenW / 3 - imageButton.w / 2,
-    350,
-    imageButton.w,
-    imageButton.h,
-    "New Game",
-    GCGUI.font
-  )
+    GCGUI.newButton(W / 3 - imageButton.w / 2, 250, imageButton.w, imageButton.h, "New Game", GCGUI.font)
   victoryButtonRestart:setImage(imageButton.image)
 
   local victoryButtonMenu =
-    GCGUI.newButton(
-    SettingsMod.screenW - SettingsMod.screenW / 3 - imageButton.w / 2,
-    350,
-    imageButton.w,
-    imageButton.h,
-    "Menu",
-    GCGUI.font
-  )
+    GCGUI.newButton(W - W / 3 - imageButton.w / 2, 250, imageButton.w, imageButton.h, "Menu", GCGUI.font)
   victoryButtonMenu:setImage(imageButton.image)
 
-  local text = "You Win !"
-  local victoryText = GCGUI.newText(0, 0, SettingsMod.screenW, 300, text, GCGUI.font, "center", "center")
-
+  GuiGame.victoryGroup:addElement(victoryText)
   GuiGame.victoryGroup:addElement(victoryButtonRestart)
   GuiGame.victoryGroup:addElement(victoryButtonMenu)
-  GuiGame.victoryGroup:addElement(victoryText)
 end
 
 function GuiGame.updateVictoryGroup(dt)
@@ -458,18 +465,11 @@ function GuiGame.loadGameOverGroup()
   GuiGame.gameOverGroup = GCGUI.newGroup()
 
   local gameOverButtonRestart =
-    GCGUI.newButton(
-    SettingsMod.screenW - SettingsMod.screenW / 3 - imageButton.w / 2,
-    250,
-    imageButton.w,
-    imageButton.h,
-    "New Game",
-    GCGUI.font
-  )
+    GCGUI.newButton(W - W / 3 - imageButton.w / 2, 250, imageButton.w, imageButton.h, "New Game", GCGUI.font)
   gameOverButtonRestart:setImage(imageButton.image)
 
   local gameOverButtonMenu =
-    GCGUI.newButton(SettingsMod.screenW / 3 - imageButton.w / 2, 250, imageButton.w, imageButton.h, "Menu", GCGUI.font)
+    GCGUI.newButton(W / 3 - imageButton.w / 2, 250, imageButton.w, imageButton.h, "Menu", GCGUI.font)
   gameOverButtonMenu:setImage(imageButton.image)
 
   local enemyOrEnemies
@@ -479,7 +479,7 @@ function GuiGame.loadGameOverGroup()
     enemyOrEnemies = " enemy."
   end
   local text = "Game Over... You destroyed " .. tostring(EnemyMod.scorePlayer) .. enemyOrEnemies
-  local gameOverText = GCGUI.newText(0, 0, SettingsMod.screenW, 300, text, GCGUI.font, "center", "center")
+  local gameOverText = GCGUI.newText(0, 0, W, 300, text, GCGUI.font, "center", "center")
 
   GuiGame.gameOverGroup:addElement(gameOverButtonRestart)
   GuiGame.gameOverGroup:addElement(gameOverButtonMenu)

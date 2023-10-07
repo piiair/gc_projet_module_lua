@@ -20,7 +20,7 @@ tank.heightTank = tank.imageTank:getHeight()
 tank.widthBarrel = tank.imageBarrel:getWidth()
 tank.heightBarrel = tank.imageBarrel:getHeight()
 
-local sndCollectGold = love.audio.newSource("sounds/collectgold.wav", "static")
+local sndCollectGold = love.audio.newSource("sounds/collectGold.wav", "static")
 local sndExplodeTank = love.audio.newSource("sounds/explodeTank.wav", "static")
 local sndCollide = love.audio.newSource("sounds/collision.wav", "static")
 local sndSwapWeapon = love.audio.newSource("sounds/swapWeapon.wav", "static")
@@ -28,6 +28,8 @@ local sndSwapWeapon = love.audio.newSource("sounds/swapWeapon.wav", "static")
 local MouseX, MouseY
 local oldRightBtnState
 local rightBtnState
+
+local healCost = 3
 
 --Variable
 function tank.reset()
@@ -139,8 +141,8 @@ end
 
 local function Heal()
   canHeal = false
-  if tank.goldStock > 0 and tank.hp < tank.hpMax then
-    tank.goldStock = tank.goldStock - 1
+  if tank.goldStock >= healCost and tank.hp < tank.hpMax then
+    tank.goldStock = tank.goldStock - healCost
     tank.hp = tank.hp + 1
   end
 end
@@ -275,12 +277,10 @@ function tank.draw()
       tank.widthTank / 2,
       tank.heightTank / 2
     )
-
+    
     --dessin du canon
     love.graphics.draw(tank.imageBarrel, tank.x, tank.y, math.rad(tank.angleBarrel), 1, 1, 5, tank.heightBarrel / 2)
 
-    --test variables
-    love.graphics.print(tostring(tank.currentWeapon))
   end
 end
 

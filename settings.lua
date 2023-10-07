@@ -1,10 +1,10 @@
 local settings = {}
 
---math.randomseed(os.time())
+math.randomseed(os.time())
 
 --La fenêtre
 love.window.setMode(1280, 720)
---love.window.setTitle("Tank quelque chose")
+love.window.setTitle("Another Tank Shooter")
 settings.MARGIN_GUI_PLAYER = 300
 settings.screenW = love.graphics.getWidth()
 settings.screenH = love.graphics.getHeight()
